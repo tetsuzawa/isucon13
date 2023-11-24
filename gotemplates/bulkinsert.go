@@ -21,11 +21,13 @@ func BulkInsert(ctx context.Context, db *sqlx.DB, buf []Event) error {
 	for _, event := range buf {
 		placeholders = append(placeholders, "(?, ?, ?)")
 		values = append(values, event.At, event.Name, event.Value)
+	}
+	query += strings.Join(placeholders, ",")
 
-		query += strings.Join(placeholders, ",")
-
-		_, err := db.ExecContext(ctx, query, values...)
+	_, err := db.ExecContext(ctx, query, values...)
+	if err !=nil {
 		return fmt.Errorf("failed to exec builk insert: %w", err)
 	}
+
 	return nil
 }

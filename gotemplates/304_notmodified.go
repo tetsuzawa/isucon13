@@ -34,7 +34,7 @@ func Handle304NotModified(c echo.Context) error {
 
 	// リクエストヘッダのETagと今生成したETagが一致するか比較し、一致したら304を返す
 	if match := c.Request().Header.Get("If-None-Match"); match != "" {
-		if match == etag {
+		if match == etag || match == fmt.Sprintf("W/%s", etag) {
 			return c.NoContent(http.StatusNotModified)
 		}
 	}
