@@ -7,6 +7,12 @@ upstream app {
     # hash $request_uri consistent;  # urlが同じ場合origin serverへのrequestを同じserverへ送る。これを使うとGoのprocess cacheが効きやすくなる。cpu使用率が増える可能性があるので注意。Goでのcache hit率が低く、CPU使用率が高い場合に有効。
 }
 
+# varnishを使う場合、複数台構成はvarnishで行う。
+upstream varnish {
+    server 192.168.0.11:6081;
+    keepalive 60; # varnish server へ keepalive する connection の数。
+}
+
 server {
     listen 443 ssl http2 reuseport;  # reuseportを使用して各ワーカーが独自のソケットを持つように。reuseportを使うときはaccept_mutexをoffにする必要がある。
     server_name mysite.com www.mysite.com;
