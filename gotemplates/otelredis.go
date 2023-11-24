@@ -10,6 +10,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+var rdb = GetRedisClient(context.Background())
+
 func GetRedisClient(ctx context.Context) *redis.Client {
 	// redis.confで外部接続許可を忘れずに
 	addr := fmt.Sprintf("%s:%v",

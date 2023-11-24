@@ -62,3 +62,36 @@ alp json --file=${nginx_access_log} \
 # sudo chmod 644 ${mysql_slow_log}
 # pt-query-digest  --progress percentage,5 --explain "h=${DB_HOST},u=${DB_USER},p=${DB_PASS},D=${DB_DATABASE}" ${mysql_slow_log} > ${result_dir}/pt-query-digest.txt
 # pt-query-digest ${mysql_slow_log} > ${result_dir}/pt-query-digest.txt
+
+
+# 500エラー周辺のログをまとめる
+touch log/app/5xx_journal.log
+cp log/app/5xx_journal.log log/app/5xx_journal.log.prev
+cat log/app/journal.log | grep -B5 -A5 -P '"status":5\d\d' > log/app/5xx_journal.log || true
+
+touch log/nginx/5xx_access.log
+cp log/nginx/5xx_access.log log/nginx/5xx_access.log.prev
+cat log/nginx/access.log | grep -B5 -A5 -P '"status":"5\d\d"' > log/nginx/5xx_access.log || true
+
+
+# access logから集計
+
+# Varnishのキャッシュヒット率の集計
+touch ${result_dir}/varnish_cache_hit.txt
+cat log/nginx/access.log | jq -r '.cache' | sort | uniq -c | sort -nr > ${result_dir}/cache_hit_varnish.txt
+
+# バックエンド(Goのプロセスキャッシュ・Redisなど)のキャッシュヒット率の集計
+touch ${result_dir}/varnish_cache_hit.txt
+cat log/nginx/access.log | jq -r '.upstream_http_cache_status' | sort | uniq -c | sort -nr > ${result_dir}/cache_hit_backend.txt
+
+# Accept-Encodingの集計
+touch ${result_dir}/accept_encoding.txt
+cat log/nginx/access.log | jq -r .accept_encoding | sort | uniq -c | sort -nr > ${result_dir}/accept_encoding.txt
+
+# User-Agentの集計
+touch ${result_dir}/ua.txt
+cat log/nginx/access.log | jq -r .ua | sort | uniq -c | sort -nr > ${result_dir}/ua.txt
+
+# status code の集計
+touch ${result_dir}/status_code.txt
+cat log/nginx/access.log | jq -r .status | sort | uniq -c | sort -nr > ${result_dir}/status_code.txt
