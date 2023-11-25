@@ -197,8 +197,8 @@ func searchLivestreamsHandler(c echo.Context) error {
 		// keyTaggedLivestreamsのlivestream_idを元にIN句でlivestreamsを取得
 
 		var livestreamsIds []int64
-		for _, livestream := range keyTaggedLivestreams {
-			livestreamsIds = append(livestreamsIds, livestream.LivestreamID)
+		for _, keyTaggedLivestream := range keyTaggedLivestreams {
+			livestreamsIds = append(livestreamsIds, keyTaggedLivestream.LivestreamID)
 		}
 
 		// Prepare the query
