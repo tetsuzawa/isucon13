@@ -13,7 +13,7 @@ ISUCON_DB_USER=${ISUCON13_MYSQL_DIALCONFIG_USER:-isucon}
 ISUCON_DB_PASSWORD=${ISUCON13_MYSQL_DIALCONFIG_PASSWORD:-isucon}
 ISUCON_DB_NAME=${ISUCON13_MYSQL_DIALCONFIG_DATABASE:-isupipe}
 
-psql -U isucon -d isupipe -f ./init.sql";
+psql -U isucon -d isupipe -f "./init.sql";
 
 psql -U isucon -d isupipe -c "\COPY isupipe.users FROM ./users.csv DELIMITER ',' CSV";
 psql -U isucon -d isupipe -c "\COPY isupipe.livestreams FROM ./livestreams.csv DELIMITER ',' CSV";
