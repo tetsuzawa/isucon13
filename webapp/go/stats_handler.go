@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/redis/go-redis/v9"
 )
 
 type LivestreamStatistics struct {
@@ -102,7 +103,9 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	// リアクション数
 	var totalReactions int64
-	if ret := rdb.Get(ctx, "total_reactions:"+userIDStr); ret.Err() != nil {
+	if ret := rdb.Get(ctx, "total_reactions:"+userIDStr); ret.Err() == redis.Nil {
+		// nop
+	} else if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get total reactions: "+ret.Err().Error())
 	} else {
 		totalReactions, err = ret.Int64()
@@ -113,7 +116,9 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	// ライブコメント数、チップ合計
 	var totalLivecomments int64
-	if ret := rdb.Get(ctx, "total_comments:"+userIDStr); ret.Err() != nil {
+	if ret := rdb.Get(ctx, "total_comments:"+userIDStr); ret.Err() == redis.Nil {
+		// nop
+	} else if ret.Err() != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get total livecomments: "+ret.Err().Error())
 	} else {
 		totalLivecomments, err = ret.Int64()
@@ -122,7 +127,9 @@ func getUserStatisticsHandler(c echo.Context) error {
 		}
 	}
 	var totalTip int64
-	if ret := rdb.Get(ctx, "total_tip:"+userIDStr); ret.Err() != nil {
+	if ret := rdb.Get(ctx, "total_tip:"+userIDStr); ret.Err() == redis.Nil {
+		// nop
+	} else if ret.Err() != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get total tip: "+ret.Err().Error())
 	} else {
 		totalTip, err = ret.Int64()
@@ -133,7 +140,9 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	// 合計視聴者数
 	var viewersCount int64
-	if ret := rdb.Get(ctx, "livestream_viewers:"+userIDStr); ret.Err() != nil {
+	if ret := rdb.Get(ctx, "livestream_viewers:"+userIDStr); ret.Err() == redis.Nil {
+		// nop
+	} else if ret.Err() != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get viewers count: "+ret.Err().Error())
 	} else {
 		viewersCount, err = ret.Int64()
