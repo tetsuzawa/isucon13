@@ -120,7 +120,7 @@ GROUP BY emoji_name`
 		UserID            int64 `db:"user_id"`
 	}
 	var tcs []TotalComment
-	if err := dbConn.SelectContext(ctx, &tcs, "SELECT user_id, COUNT(*) AS total_comment_count, SUM(tip) AS total_tip FROM livecomments c INNER JOIN livestreams l ON c.livestream_id = l.id GROUP BY l.user_id"); err != nil {
+	if err := dbConn.SelectContext(ctx, &tcs, "SELECT l.user_id, COUNT(*) AS total_comment_count, SUM(tip) AS total_tip FROM livecomments c INNER JOIN livestreams l ON c.livestream_id = l.id GROUP BY l.user_id"); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select comments: "+err.Error())
 	}
 	for _, tc := range tcs {
