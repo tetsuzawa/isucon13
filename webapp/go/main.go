@@ -109,7 +109,25 @@ func connectDB(logger echo.Logger) (*sqlx.DB, error) {
 	return db, nil
 }
 
+func deleteAllIcon() {
+	// bashを使用しないとglobが展開されない
+	// 注意: 引数を''をくくるとうまく動かない
+	//cmd := exec.Command("bash", "-c", "rm -rfv /home/isucon/private_isu/webapp/public/image/*")
+
+	// 注意: 実行権限を忘れずに
+	cmd := exec.Command("bash", "-c", "/home/isucon/delete_all_icon.sh")
+	fmt.Printf("running command: `%s`\n", cmd.String())
+	output, err := cmd.Output()
+
+	if err != nil {
+		log.Fatalf("command exec error: %v", err)
+	}
+	fmt.Printf("command output: %s\n", output)
+}
+
 func initializeHandler(c echo.Context) error {
+	deleteAllIcon()
+
 	if out, err := exec.Command("../sql/pg/init.sh").CombinedOutput(); err != nil {
 		c.Logger().Warnf("init.sh failed with err=%s", string(out))
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
@@ -129,6 +147,9 @@ func main() {
 			panic(err)
 		}
 	}()
+
+	var err error
+	idg, err = NewIDGenerator()
 
 	e := echo.New()
 	e.Debug = true
