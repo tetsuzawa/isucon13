@@ -132,6 +132,13 @@ func postReactionHandler(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
+	var livestreamModel LivestreamModel
+	if err := tx.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
+	}
+	if err := rdb.ZIncrBy(ctx, "ranking", 1, strconv.FormatInt(livestreamModel.UserID, 10)).Err(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment ranking: "+err.Error())
+	}
 
 	return c.JSON(http.StatusCreated, reaction)
 }

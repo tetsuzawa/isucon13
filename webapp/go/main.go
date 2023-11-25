@@ -116,6 +116,11 @@ func initializeHandler(c echo.Context) error {
 	}
 
 	c.Request().Header.Add("Content-Type", "application/json;charset=utf-8")
+
+	if err := rdb.FlushAll(c.Request().Context()).Err(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to flush redis: "+err.Error())
+	}
+
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "golang",
 	})

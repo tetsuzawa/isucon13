@@ -232,6 +232,9 @@ func postLivecommentHandler(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
+	if err := rdb.ZIncrBy(ctx, "ranking", float64(req.Tip), strconv.FormatInt(livestreamModel.UserID, 10)).Err(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment ranking: "+err.Error())
+	}
 
 	return c.JSON(http.StatusCreated, livecomment)
 }
