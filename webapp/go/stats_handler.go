@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 )
 
@@ -164,13 +165,36 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	// 合計視聴者数
 	var viewersCount int64
+
+	// livestream_id に紐づく視聴者数をIN句でまとめて取得
+
+	// Extract the IDs from the livestreams
+	var ids []int64
 	for _, livestream := range livestreams {
-		var cnt int64
-		if err := tx.GetContext(ctx, &cnt, "SELECT COUNT(*) FROM livestream_viewers_history WHERE livestream_id = ?", livestream.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream_view_history: "+err.Error())
-		}
-		viewersCount += cnt
+		ids = append(ids, livestream.ID)
 	}
+
+	// Prepare the query
+	query := "SELECT COUNT(*) FROM livestream_viewers_history WHERE livestream_id IN (?)"
+
+	// Use query, args... to pass ids slice to the query
+	query, args, err := sqlx.In(query, ids)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare query: "+err.Error())
+	}
+
+	if err := tx.GetContext(ctx, &viewersCount, query, args...); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream_view_history: "+err.Error())
+	}
+
+	// viewersCount += cnt
+	// for _, livestream := range livestreams {
+	// 	var cnt int64
+	// 	if err := tx.GetContext(ctx, &cnt, "SELECT COUNT(*) FROM livestream_viewers_history WHERE livestream_id = ?", livestream.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	// 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream_view_history: "+err.Error())
+	// 	}
+	// 	viewersCount += cnt
+	// }
 
 	// お気に入り絵文字
 	var favoriteEmoji string
