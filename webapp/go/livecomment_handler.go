@@ -223,7 +223,6 @@ func postLivecommentHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted livecomment id: "+err.Error())
 	}
 	livecommentModel.ID = livecommentID
-	println("ngword livecommentsID", livecommentID)
 
 	livecomment, err := fillLivecommentResponse(ctx, tx, livecommentModel)
 	if err != nil {
