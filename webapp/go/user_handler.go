@@ -463,30 +463,30 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 		return User{}, fmt.Errorf("failed to get theme: %w", err)
 	}
 
-	var iconHashStr string
+	// var iconHashStr string
 	filename := fmt.Sprintf("%s%s.jpeg", iconBasePath, userModel.Name)
-	func() {
-		iconCacheLock.RLock()
-		defer iconCacheLock.RUnlock()
-		if hash, ok := iconCache[filename]; ok {
-			iconHashStr = hash
-		}
-	}()
-	if iconHashStr != "" {
-		user := User{
-			ID:          userModel.ID,
-			Name:        userModel.Name,
-			DisplayName: userModel.DisplayName,
-			Description: userModel.Description,
-			Theme: Theme{
-				ID:       themeModel.ID,
-				DarkMode: themeModel.DarkMode,
-			},
-			IconHash: iconHashStr,
-		}
+	//func() {
+	//	iconCacheLock.RLock()
+	//	defer iconCacheLock.RUnlock()
+	//	if hash, ok := iconCache[filename]; ok {
+	//		iconHashStr = hash
+	//	}
+	//}()
+	//if iconHashStr != "" {
+	//	user := User{
+	//		ID:          userModel.ID,
+	//		Name:        userModel.Name,
+	//		DisplayName: userModel.DisplayName,
+	//		Description: userModel.Description,
+	//		Theme: Theme{
+	//			ID:       themeModel.ID,
+	//			DarkMode: themeModel.DarkMode,
+	//		},
+	//		IconHash: iconHashStr,
+	//	}
 
-		return user, nil
-	}
+	//	return user, nil
+	//}
 
 	var iconHash [sha256.Size]byte
 	iconCacheLock.Lock()
