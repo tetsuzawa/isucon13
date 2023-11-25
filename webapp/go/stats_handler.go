@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
 	"sort"
@@ -106,15 +105,15 @@ func getUserStatisticsHandler(c echo.Context) error {
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to convert score to int64: "+err.Error())
 		}
-		scoreStr := fmt.Sprintf("%f.0", score)
+		scoreStr := strconv.FormatFloat(score, 'f', -1, 64)
 		if ret := rdb.ZCount(ctx, "ranking", scoreStr, "+inf"); ret.Err() != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get rank: "+ret.Err().Error())
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get rank count: "+ret.Err().Error())
 		}
 		rank = int64(ret.Val()) + 1
 		if ret := rdb.ZRangeByScore(ctx, "ranking", &redis.ZRangeBy{
 			Min: scoreStr, Max: scoreStr,
 		}); ret.Err() != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get rank: "+ret.Err().Error())
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get rank score: "+ret.Err().Error())
 		} else {
 			members := ret.Val()
 			sort.Strings(members)
