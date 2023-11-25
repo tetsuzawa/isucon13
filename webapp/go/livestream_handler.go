@@ -198,7 +198,7 @@ func searchLivestreamsHandler(c echo.Context) error {
 
 		var livestreamsIds []int64
 		for _, livestream := range keyTaggedLivestreams {
-			livestreamsIds = append(livestreamsIds, livestream.ID)
+			livestreamsIds = append(livestreamsIds, livestream.LivestreamID)
 		}
 
 		// Prepare the query
@@ -209,7 +209,7 @@ func searchLivestreamsHandler(c echo.Context) error {
 		}
 
 		if err := tx.SelectContext(ctx, &livestreamModels, query, args...); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
 		}
 
 		// for _, keyTaggedLivestream := range keyTaggedLivestreams {
