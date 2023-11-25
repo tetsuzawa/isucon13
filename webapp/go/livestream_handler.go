@@ -351,6 +351,13 @@ func enterLivestreamHandler(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
+	var livestreamModel LivestreamModel
+	if err := dbConn.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
+	}
+	if err := rdb.Incr(ctx, fmt.Sprintf("livestream_viewers:%d", livestreamModel.UserID)).Err(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment livestream_viewers: "+err.Error())
+	}
 
 	return c.NoContent(http.StatusOK)
 }
@@ -384,6 +391,13 @@ func exitLivestreamHandler(c echo.Context) error {
 
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
+	}
+	var livestreamModel LivestreamModel
+	if err := dbConn.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
+	}
+	if err := rdb.Decr(ctx, fmt.Sprintf("livestream_viewers:%d", livestreamModel.UserID)).Err(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment livestream_viewers: "+err.Error())
 	}
 
 	return c.NoContent(http.StatusOK)
