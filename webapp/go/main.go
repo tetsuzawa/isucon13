@@ -226,6 +226,11 @@ func main() {
 	defer conn.Close()
 	dbConn = conn
 
+	err = SelectAllTagsOnInit(context.Background(), dbConn)
+	if err != nil {
+		panic(err)
+	}
+
 	subdomainAddr, ok := os.LookupEnv(powerDNSSubdomainAddressEnvKey)
 	if !ok {
 		e.Logger.Errorf("environ %s must be provided", powerDNSSubdomainAddressEnvKey)
