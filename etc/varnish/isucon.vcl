@@ -4,25 +4,25 @@ import directors;
 import std;
 
 # Default backend definition. Set this to point to your content server.
-backend default {
-    .host = "127.0.0.1";
-    .port = "8080";
-}
+# backend default {
+#     .host = "127.0.0.1";
+#     .port = "8080";
+# }
 
 //backend isu1 {
 //    .host = "192.168.0.11";
 //    .port = "8080";
 //}
 
-# backend isu2 {
-#     .host = "192.168.0.12";
-#     .port = "8080";
-# }
+backend isu2 {
+    .host = "192.168.0.12";
+    .port = "8080";
+}
 
-# backend isu3 {
-#     .host = "192.168.0.13";
-#     .port = "8080";
-# }
+backend isu3 {
+    .host = "192.168.0.13";
+    .port = "8080";
+}
 
 sub vcl_init {
     # ラウンドロビンでリクエストを送る
@@ -31,14 +31,14 @@ sub vcl_init {
     # bar.add_backend(isu2);
 
     # 重み付けでリクエストを送る
-    //    new vdir = directors.random();
+    new vdir = directors.random();
     # bar.add_backend(isu2);
     # 2/3 -> isu1, 1/3 -> isu2.
     # vdir.add_backend(isu1, 10.0);
     # vdir.add_backend(isu2, 5.0);
 
-    //    vdir.add_backend(isu1, 4.0);
-    # vdir.add_backend(isu3, 6.0);
+    vdir.add_backend(isu1, 5.0);
+    vdir.add_backend(isu3, 6.0);
 }
 
 # acl purge {
@@ -48,7 +48,7 @@ sub vcl_init {
 
 sub vcl_recv {
     # 重み付けを使うときは以下を記述しないと動かない
-    # set req.backend_hint = vdir.backend();
+    set req.backend_hint = vdir.backend();
 
     # 特定パスだけは別のバックエンドに送る
     #    if (req.url ~ "^/java/") {
