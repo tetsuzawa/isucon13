@@ -13,60 +13,15 @@ ISUCON_DB_USER=${ISUCON13_MYSQL_DIALCONFIG_USER:-isucon}
 ISUCON_DB_PASSWORD=${ISUCON13_MYSQL_DIALCONFIG_PASSWORD:-isucon}
 ISUCON_DB_NAME=${ISUCON13_MYSQL_DIALCONFIG_DATABASE:-isupipe}
 
-# MySQLを初期化
-mysql -u"$ISUCON_DB_USER" \
-		-p"$ISUCON_DB_PASSWORD" \
-		--host "$ISUCON_DB_HOST" \
-		--port "$ISUCON_DB_PORT" \
-		"$ISUCON_DB_NAME" < init.sql
 
-mysql -u"$ISUCON_DB_USER" \
-		-p"$ISUCON_DB_PASSWORD" \
-		--host "$ISUCON_DB_HOST" \
-		--port "$ISUCON_DB_PORT" \
-		"$ISUCON_DB_NAME" < initial_users.sql
-
-mysql -u"$ISUCON_DB_USER" \
-		-p"$ISUCON_DB_PASSWORD" \
-		--host "$ISUCON_DB_HOST" \
-		--port "$ISUCON_DB_PORT" \
-		"$ISUCON_DB_NAME" < initial_livestreams.sql
-
-mysql -u"$ISUCON_DB_USER" \
-		-p"$ISUCON_DB_PASSWORD" \
-		--host "$ISUCON_DB_HOST" \
-		--port "$ISUCON_DB_PORT" \
-		"$ISUCON_DB_NAME" < initial_tags.sql
-
-mysql -u"$ISUCON_DB_USER" \
-		-p"$ISUCON_DB_PASSWORD" \
-		--host "$ISUCON_DB_HOST" \
-		--port "$ISUCON_DB_PORT" \
-		"$ISUCON_DB_NAME" < initial_livestream_tags.sql
-
-mysql -u"$ISUCON_DB_USER" \
-		-p"$ISUCON_DB_PASSWORD" \
-		--host "$ISUCON_DB_HOST" \
-		--port "$ISUCON_DB_PORT" \
-		"$ISUCON_DB_NAME" < initial_reservation_slots.sql
-
-mysql -u"$ISUCON_DB_USER" \
-		-p"$ISUCON_DB_PASSWORD" \
-		--host "$ISUCON_DB_HOST" \
-		--port "$ISUCON_DB_PORT" \
-		"$ISUCON_DB_NAME" < initial_reactions.sql
-
-mysql -u"$ISUCON_DB_USER" \
-		-p"$ISUCON_DB_PASSWORD" \
-		--host "$ISUCON_DB_HOST" \
-		--port "$ISUCON_DB_PORT" \
-		"$ISUCON_DB_NAME" < initial_ngwords.sql
-
-mysql -u"$ISUCON_DB_USER" \
-		-p"$ISUCON_DB_PASSWORD" \
-		--host "$ISUCON_DB_HOST" \
-		--port "$ISUCON_DB_PORT" \
-		"$ISUCON_DB_NAME" < initial_livecomments.sql
+psql -U isucon -d isupipe -c "\COPY isupipe.users FROM ./users.csv DELIMITER ',' CSV";
+psql -U isucon -d isupipe -c "\COPY isupipe.livestreams FROM ./livestreams.csv DELIMITER ',' CSV";
+psql -U isucon -d isupipe -c "\COPY isupipe.tags FROM ./tags.csv DELIMITER ',' CSV";
+psql -U isucon -d isupipe -c "\COPY isupipe.livestream_tags FROM ./livestream_tags.csv DELIMITER ',' CSV";
+psql -U isucon -d isupipe -c "\COPY isupipe.reservation_slots FROM ./reservation_slots.csv DELIMITER ',' CSV";
+psql -U isucon -d isupipe -c "\COPY isupipe.reactions FROM ./reactions.csv DELIMITER ',' CSV";
+psql -U isucon -d isupipe -c "\COPY isupipe.ngwords FROM ./ngwords.csv DELIMITER ',' CSV";
+psql -U isucon -d isupipe -c "\COPY isupipe.livecomments FROM ./livecomments.csv DELIMITER ',' CSV";
 
 bash ../pdns/init_zone.sh 
 
