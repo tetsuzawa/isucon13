@@ -45,9 +45,8 @@ func GetDB() (*sqlx.DB, error) {
 	}
 
 	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%v/%s?sslmode=disable",
+		"postgres://%s@%s:%v/%s?sslmode=disable",
 		GetEnv("DB_USER", "isucon"),
-		GetEnv("DB_PASS", "isucon"),
 		GetEnv("DB_HOSTNAME", "127.0.0.1"),
 		GetEnv("DB_PORT", "5432"),
 		GetEnv("DB_DATABASE", "isucon"),
