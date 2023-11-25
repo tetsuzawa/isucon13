@@ -244,7 +244,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user statistics: "+err.Error())
 	}
 	go func() {
-		time.Sleep(1 * time.Second)
+		time.Sleep(5 * time.Second)
 		sfs.Forget(username)
 	}()
 	stats := v.(*UserStatistics)
