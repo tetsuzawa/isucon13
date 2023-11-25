@@ -192,7 +192,7 @@ sub vcl_recv {
 	// e.GET("/api/livestream/:livestream_id/ngwords", getNgwords)
 	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/ngwords" && req.method == "GET") {
         # set req.backend_hint = isu1;
-        return (pass);
+        return (hash);
     }
 
 	// ライブコメント報告
