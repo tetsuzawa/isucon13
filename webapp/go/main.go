@@ -115,7 +115,7 @@ func deleteAllIcon() {
 	//cmd := exec.Command("bash", "-c", "rm -rfv /home/isucon/private_isu/webapp/public/image/*")
 
 	// 注意: 実行権限を忘れずに
-	cmd := exec.Command("bash", "-c", "/home/isucon/webapp/public/delete_all_icon.sh")
+	cmd := exec.Command("bash", "-c", "/home/isucon/delete_all_icon.sh")
 	fmt.Printf("running command: `%s`\n", cmd.String())
 	output, err := cmd.Output()
 
