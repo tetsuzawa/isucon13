@@ -194,14 +194,32 @@ func searchLivestreamsHandler(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get keyTaggedLivestreams: "+err.Error())
 		}
 
-		for _, keyTaggedLivestream := range keyTaggedLivestreams {
-			ls := LivestreamModel{}
-			if err := tx.GetContext(ctx, &ls, "SELECT * FROM livestreams WHERE id = ?", keyTaggedLivestream.LivestreamID); err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
-			}
+		// keyTaggedLivestreamsのlivestream_idを元にIN句でlivestreamsを取得
 
-			livestreamModels = append(livestreamModels, &ls)
+		var livestreamsIds []int64
+		for _, livestream := range keyTaggedLivestreams {
+			livestreamsIds = append(livestreamsIds, livestream.ID)
 		}
+
+		// Prepare the query
+		query = "SELECT * FROM livestreams WHERE livestream_id IN (?)"
+		query, args, err := sqlx.In(query, livestreamsIds)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare query: "+err.Error())
+		}
+
+		if err := tx.SelectContext(ctx, &livestreamModels, query, args...); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
+		}
+
+		// for _, keyTaggedLivestream := range keyTaggedLivestreams {
+		// 	ls := LivestreamModel{}
+		// 	if err := tx.GetContext(ctx, &ls, "SELECT * FROM livestreams WHERE id = ?", keyTaggedLivestream.LivestreamID); err != nil {
+		// 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
+		// 	}
+
+		// 	livestreamModels = append(livestreamModels, &ls)
+		// }
 	} else {
 		// 検索条件なし
 		query := `SELECT * FROM livestreams ORDER BY id DESC`
