@@ -205,8 +205,8 @@ func postLivecommentHandler(c echo.Context) error {
 
 	var hitSpam int
 	for _, ngword := range ngwords {
-		println("ngword", ngword.Word, "comment", req.Comment)
 		if !strings.Contains(req.Comment, ngword.Word) {
+			println("ngword", ngword.Word, "comment", req.Comment)
 			continue
 		}
 		c.Logger().Infof("[hitSpam=%d] comment = %s", hitSpam, req.Comment)
