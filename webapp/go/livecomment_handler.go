@@ -426,11 +426,16 @@ func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel 
 }
 
 func fillLivecommentReportResponse(ctx context.Context, tx *sqlx.Tx, reportModel LivecommentReportModel) (LivecommentReport, error) {
-	reporterModel := UserModel{}
-	if err := tx.GetContext(ctx, &reporterModel, "SELECT * FROM users WHERE id = ?", reportModel.UserID); err != nil {
+	//reporterModel := UserModel{}
+	//if err := tx.GetContext(ctx, &reporterModel, "SELECT * FROM users WHERE id = ?", reportModel.UserID); err != nil {
+	//	return LivecommentReport{}, err
+	//}
+	reporterModel, err := GetUserWithCache(ctx, tx, reportModel.UserID)
+	if err != nil {
 		return LivecommentReport{}, err
 	}
-	reporter, err := fillUserResponse(ctx, tx, reporterModel)
+
+	reporter, err := fillUserResponse(ctx, tx, *reporterModel)
 	if err != nil {
 		return LivecommentReport{}, err
 	}
