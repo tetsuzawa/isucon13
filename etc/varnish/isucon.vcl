@@ -4,15 +4,15 @@ import directors;
 import std;
 
 # Default backend definition. Set this to point to your content server.
-# backend default {
-#     .host = "127.0.0.1";
-#     .port = "8080";
-# }
-
-backend isu1 {
-    .host = "192.168.0.11";
-    .port = "3000";
+backend default {
+    .host = "127.0.0.1";
+    .port = "8080";
 }
+
+//backend isu1 {
+//    .host = "192.168.0.11";
+//    .port = "8080";
+//}
 
 # backend isu2 {
 #     .host = "192.168.0.12";
@@ -21,7 +21,7 @@ backend isu1 {
 
 # backend isu3 {
 #     .host = "192.168.0.13";
-#     .port = "3000";
+#     .port = "8080";
 # }
 
 sub vcl_init {
@@ -31,13 +31,13 @@ sub vcl_init {
     # bar.add_backend(isu2);
 
     # 重み付けでリクエストを送る
-    new vdir = directors.random();
+    //    new vdir = directors.random();
     # bar.add_backend(isu2);
     # 2/3 -> isu1, 1/3 -> isu2.
     # vdir.add_backend(isu1, 10.0);
     # vdir.add_backend(isu2, 5.0);
 
-    vdir.add_backend(isu1, 4.0);
+    //    vdir.add_backend(isu1, 4.0);
     # vdir.add_backend(isu3, 6.0);
 }
 
@@ -48,7 +48,7 @@ sub vcl_init {
 
 sub vcl_recv {
     # 重み付けを使うときは以下を記述しないと動かない
-    set req.backend_hint = vdir.backend();
+    # set req.backend_hint = vdir.backend();
 
     # 特定パスだけは別のバックエンドに送る
     #    if (req.url ~ "^/java/") {
@@ -98,92 +98,184 @@ sub vcl_recv {
 
 
     # ----------------------------  isucon のURL  ----------------------------
+    // :username = [a-zA-Z0-9-_]+
+    // :livestream_id = [a-zA-Z0-9-_]+
+    // :livecomment_id = [a-zA-Z0-9-_]+
 
-    # e.POST("/api/admin/tenants/add", tenantsAddHandler)
- 	if (req.url ~ "^/api/admin/tenants/add" && req.method == "POST") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-	# e.GET("/api/admin/tenants/billing", tenantsBillingHandler)
-	if (req.url ~ "^/api/admin/tenants/billing" && req.method == "GET") {
-        # set req.backend_hint = isu1;
-        return (hash);
-    }
-
-	# テナント管理者向けAPI - 参加者追加、一覧、失格
-	# e.GET("/api/organizer/players", playersListHandler)
-	if (req.url ~ "^/api/organizer/players" && req.method == "GET") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-	# e.POST("/api/organizer/players/add", playersAddHandler)
-	if (req.url ~ "^/api/organizer/players/add" && req.method == "POST") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-	# e.POST("/api/organizer/player/:player_id/disqualified", playerDisqualifiedHandler)
-	if (req.url ~ "^/api/organizer/player/" && req.method == "POST") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-
-	// テナント管理者向けAPI - 大会管理
-	# e.POST("/api/organizer/competitions/add", competitionsAddHandler)
-	if (req.url ~ "^/api/organizer/competitions/add" && req.method == "POST") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-	# e.POST("/api/organizer/competition/:competition_id/finish", competitionFinishHandler)
-	if (req.url ~ "^/api/organizer/competition/[a-zA-Z0-9-_]+/finish" && req.method == "POST") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-	# e.POST("/api/organizer/competition/:competition_id/score", competitionScoreHandler)
-	if (req.url ~ "^/api/organizer/competition/[a-zA-Z0-9-_]+/score" && req.method == "POST") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-	# e.GET("/api/organizer/billing", billingHandler)
-	if (req.url ~ "^/api/organizer/billing" && req.method == "GET") {
-        # set req.backend_hint = isu1;
-        return (hash);
-    }
-	# e.GET("/api/organizer/competitions", organizerCompetitionsHandler)
-	if (req.url ~ "^/api/organizer/competitions" && req.method == "GET") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-
-	# 参加者向けAPI
-	# e.GET("/api/player/player/:player_id", playerHandler)
-	if (req.url ~ "^/api/player/player/[a-zA-Z0-9-_]+" && req.method == "GET") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-	# e.GET("/api/player/competition/:competition_id/ranking", competitionRankingHandler)
-	if (req.url ~ "^/api/player/competition/[a-zA-Z0-9-_]+/ranking" && req.method == "GET") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-	# e.GET("/api/player/competitions", playerCompetitionsHandler)
-	if (req.url ~ "^/api/player/competitions" && req.method == "GET") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-
-	// 全ロール及び未認証でも使えるhandler
-	# e.GET("/api/me", meHandler)
-	if (req.url ~ "^/api/me" && req.method == "GET") {
-        # set req.backend_hint = isu1;
-        return (pass);
-    }
-
-	// ベンチマーカー向けAPI
-	# e.POST("/initialize", initializeHandler)
+	// 初期化
+    //	e.POST("/api/initialize", initializeHandler)
     if (req.url ~ "^/initialize" && req.method == "POST") {
         # set req.backend_hint = isu1;
         return (pass);
     }
+
+	// top
+    //	e.GET("/api/tag", getTagHandler)
+	if (req.url ~ "^/api/tag" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+    //	e.GET("/api/user/:username/theme", getStreamerThemeHandler)
+    if (req.url ~ "^/api/user/[a-zA-Z0-9-_]+/theme" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// livestream
+	// reserve livestream
+    //	e.POST("/api/livestream/reservation", reserveLivestreamHandler)
+    if (req.url ~ "^/api/livestream/reservation" && req.method == "POST") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// list livestream
+	// e.GET("/api/livestream/search", searchLivestreamsHandler)
+	if (req.url ~ "^/api/livestream/search" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// e.GET("/api/livestream", getMyLivestreamsHandler)
+	if (req.url ~ "^/api/livestream" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// e.GET("/api/user/:username/livestream", getUserLivestreamsHandler)
+	if (req.url ~ "^/api/user/[a-zA-Z0-9-_]+/livestream" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// get livestream
+	// e.GET("/api/livestream/:livestream_id", getLivestreamHandler)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// get polling livecomment timeline
+	// e.GET("/api/livestream/:livestream_id/livecomment", getLivecommentsHandler)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/livecomment" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// ライブコメント投稿
+	// e.POST("/api/livestream/:livestream_id/livecomment", postLivecommentHandler)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/livecomment" && req.method == "POST") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// e.POST("/api/livestream/:livestream_id/reaction", postReactionHandler)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/reaction" && req.method == "POST") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// e.GET("/api/livestream/:livestream_id/reaction", getReactionsHandler)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/reaction" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// (配信者向け)ライブコメントの報告一覧取得API
+	// e.GET("/api/livestream/:livestream_id/report", getLivecommentReportsHandler)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/report" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// e.GET("/api/livestream/:livestream_id/ngwords", getNgwords)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/ngwords" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// ライブコメント報告
+	// e.POST("/api/livestream/:livestream_id/livecomment/:livecomment_id/report", reportLivecommentHandler)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/livecomment/[a-zA-Z0-9-_]+/report" && req.method == "POST") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// 配信者によるモデレーション (NGワード登録)
+	// e.POST("/api/livestream/:livestream_id/moderate", moderateHandler)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/moderate" && req.method == "POST") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// livestream_viewersにINSERTするため必要
+	// ユーザ視聴開始 (viewer)
+	// e.POST("/api/livestream/:livestream_id/enter", enterLivestreamHandler)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/enter" && req.method == "POST") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+	// ユーザ視聴終了 (viewer)
+	// e.DELETE("/api/livestream/:livestream_id/exit", exitLivestreamHandler)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/exit" && req.method == "DELETE") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// user
+	// e.POST("/api/register", registerHandler)
+	if (req.url ~ "^/api/register" && req.method == "POST") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+	// e.POST("/api/login", loginHandler)
+	if (req.url ~ "^/api/login" && req.method == "POST") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+	// e.GET("/api/user/me", getMeHandler)
+	if (req.url ~ "^/api/user/me" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+	// フロントエンドで、配信予約のコラボレーターを指定する際に必要
+	// e.GET("/api/user/:username", getUserHandler)
+	if (req.url ~ "^/api/user/[a-zA-Z0-9-_]+" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+	// e.GET("/api/user/:username/statistics", getUserStatisticsHandler)
+	if (req.url ~ "^/api/user/[a-zA-Z0-9-_]+/statistics" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+	// e.GET("/api/user/:username/icon", getIconHandler)
+	if (req.url ~ "^/api/user/[a-zA-Z0-9-_]+/icon" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+	// e.POST("/api/icon", postIconHandler)
+	if (req.url ~ "^/api/icon" && req.method == "POST") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// stats
+	// ライブ配信統計情報
+	// e.GET("/api/livestream/:livestream_id/statistics", getLivestreamStatisticsHandler)
+	if (req.url ~ "^/api/livestream/[a-zA-Z0-9-_]+/statistics" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
+	// 課金情報
+	// e.GET("/api/payment", GetPaymentResult)
+	if (req.url ~ "^/api/payment" && req.method == "GET") {
+        # set req.backend_hint = isu1;
+        return (pass);
+    }
+
     # ----------------------------  isucon のURL  ----------------------------
 }
 
