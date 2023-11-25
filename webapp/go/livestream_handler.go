@@ -491,8 +491,12 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 		return Livestream{}, fmt.Errorf("error fetch fillUser: %w", err)
 	}
 
-	var livestreamTagModels []*LivestreamTagModel
-	if err := tx.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamModel.ID); err != nil {
+	//var livestreamTagModels []*LivestreamTagModel
+	//if err := tx.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamModel.ID); err != nil {
+	//	return Livestream{}, fmt.Errorf("error fetch livestream_tags: %w", err)
+	//}
+	livestreamTagModels, err := GetTagWithCache(ctx, tx, livestreamModel.ID)
+	if err != nil {
 		return Livestream{}, fmt.Errorf("error fetch livestream_tags: %w", err)
 	}
 
