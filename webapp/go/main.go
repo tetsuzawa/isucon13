@@ -97,7 +97,7 @@ func initializeHandler(c echo.Context) error {
 			Count     int64  `db:"cnt"`
 		}
 		q := `
-ELECT r.emoji_name, COUNT(*) AS cnt
+SELECT r.emoji_name, COUNT(*) AS cnt
 FROM users u
 INNER JOIN livestreams l ON l.user_id = u.id
 INNER JOIN reactions r ON r.livestream_id = l.id
