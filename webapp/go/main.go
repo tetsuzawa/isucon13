@@ -4,7 +4,6 @@ package main
 // sqlx的な参考: https://jmoiron.github.io/sqlx/
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net"
@@ -14,13 +13,10 @@ import (
 	"strconv"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/jmoiron/sqlx"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
-
 	"github.com/gorilla/sessions"
+	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo-contrib/session"
+	"github.com/labstack/echo/v4"
 	echolog "github.com/labstack/gommon/log"
 )
 
@@ -140,26 +136,26 @@ func initializeHandler(c echo.Context) error {
 }
 
 func main() {
-	initProfile()
-	tp, _ := initTracer(context.Background())
-	defer func() {
-		if err := tp.Shutdown(context.Background()); err != nil {
-			panic(err)
-		}
-	}()
+	//initProfile()
+	//tp, _ := initTracer(context.Background())
+	//defer func() {
+	//	if err := tp.Shutdown(context.Background()); err != nil {
+	//		panic(err)
+	//	}
+	//}()
 
 	var err error
 	idg, err = NewIDGenerator()
 
 	e := echo.New()
-	e.Debug = true
-	e.Logger.SetLevel(echolog.DEBUG)
-	e.Use(middleware.Logger())
+	e.Debug = false
+	e.Logger.SetLevel(echolog.ERROR)
+	//e.Use(middleware.Logger())
 	cookieStore := sessions.NewCookieStore(secret)
 	cookieStore.Options.Domain = "*.u.isucon.dev"
 	e.Use(session.Middleware(cookieStore))
 	// e.Use(middleware.Recover())
-	e.Use(otelecho.Middleware("isupipe"))
+	// e.Use(otelecho.Middleware("isupipe"))
 
 	// 初期化
 	e.POST("/api/initialize", initializeHandler)
