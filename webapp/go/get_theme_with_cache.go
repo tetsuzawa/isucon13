@@ -11,7 +11,7 @@ func GetThemeWithCache(ctx context.Context, db GetContext, userID int64) (ThemeM
 		return themeModel, nil
 	}
 	themeModel := ThemeModel{}
-	if err := db.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE id = ?", userID); err != nil {
+	if err := db.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userID); err != nil {
 		return ThemeModel{}, err
 	}
 	themeCache.Set(userID, themeModel)
