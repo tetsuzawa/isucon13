@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/labstack/gommon/log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -96,6 +97,14 @@ func getIconHandler(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
+	filename := fmt.Sprintf("%s%s.jpeg", iconBasePath, username)
+	b, err := os.ReadFile(filename)
+	if err == nil {
+		return c.Blob(http.StatusOK, "image/jpeg", b)
+	} else {
+		c.Logger().Debugf(fmt.Errorf("ファイルから画像の読み込みに失敗しました: %w", err).Error())
+	}
+
 	var user UserModel
 	if err := tx.GetContext(ctx, &user, "SELECT * FROM users WHERE name = ?", username); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -115,6 +124,8 @@ func getIconHandler(c echo.Context) error {
 
 	return c.Blob(http.StatusOK, "image/jpeg", image)
 }
+
+var iconBasePath = "/home/isucon/webapp/public/img/"
 
 func postIconHandler(c echo.Context) error {
 	ctx := c.Request().Context()
@@ -154,12 +165,50 @@ func postIconHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted icon id: "+err.Error())
 	}
 
+	// userame 取得
+	var username string
+	if err := tx.GetContext(ctx, &username, "SELECT name FROM users WHERE user_id = ?", userID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old user icon: "+err.Error())
+	}
+
+	// ファイルの存在を確認
+	filename := fmt.Sprintf("%s%s.jpeg", iconBasePath, username)
+	if _, err := os.Stat(filename); err == nil {
+		// ファイルが存在する場合、削除
+		err := os.Remove(filename)
+		if err != nil {
+			c.Logger().Errorf("ファイルの削除に失敗しました : %v, filename=%s", err, filename)
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate icon id: "+err.Error())
+		}
+		c.Logger().Debugf("ファイルを削除 : filename=%s", filename)
+	} else if os.IsNotExist(err) {
+		// do nothing
+		c.Logger().Debugf("ファイルが存在しないのでなにもしない: filename=%s", filename)
+	} else {
+		c.Logger().Errorf("ファイルの状態の確認に失敗しました : %v, filename=%s\n", err, filename)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate icon id: "+err.Error())
+	}
+
+	file, err := os.Create(filename)
+	if err != nil {
+		c.Logger().Errorf("ファイルの作成に失敗しました: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate icon id: "+err.Error())
+	}
+	defer file.Close()
+
+	// パーミッションを777に設定
+	err = os.Chmod(filename, 0777)
+	if err != nil {
+		c.Logger().Errorf("パーミッションの変更に失敗しました: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate icon id: "+err.Error())
+	}
+
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
 
 	return c.JSON(http.StatusCreated, &PostIconResponse{
-		ID: iconID,
+		ID: int64(iconID),
 	})
 }
 
@@ -404,17 +453,25 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 		return User{}, err
 	}
 
-	var image []byte
-	if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return User{}, err
+	var iconHash [sha256.Size]byte
+	filename := fmt.Sprintf("%s%s.jpeg", iconBasePath, userModel.Name)
+	b, err := os.ReadFile(filename)
+	if err == nil {
+		iconHash = sha256.Sum256(b)
+	} else {
+		log.Debug(fmt.Errorf("ファイルから画像の読み込みに失敗しました: %w", err).Error())
+		var image []byte
+		if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return User{}, err
+			}
+			image, err = os.ReadFile(fallbackImage)
+			if err != nil {
+				return User{}, err
+			}
 		}
-		image, err = os.ReadFile(fallbackImage)
-		if err != nil {
-			return User{}, err
-		}
+		iconHash = sha256.Sum256(image)
 	}
-	iconHash := sha256.Sum256(image)
 
 	user := User{
 		ID:          userModel.ID,
