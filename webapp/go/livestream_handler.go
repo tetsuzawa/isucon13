@@ -121,28 +121,25 @@ func reserveLivestreamHandler(c echo.Context) error {
 		}
 	}
 
-	var (
-		livestreamModel = &LivestreamModel{
-			UserID:       int64(userID),
-			Title:        req.Title,
-			Description:  req.Description,
-			PlaylistUrl:  req.PlaylistUrl,
-			ThumbnailUrl: req.ThumbnailUrl,
-			StartAt:      req.StartAt,
-			EndAt:        req.EndAt,
-		}
-	)
+	livestreamModel := &LivestreamModel{
+		UserID:       int64(userID),
+		Title:        req.Title,
+		Description:  req.Description,
+		PlaylistUrl:  req.PlaylistUrl,
+		ThumbnailUrl: req.ThumbnailUrl,
+		StartAt:      req.StartAt,
+		EndAt:        req.EndAt,
+	}
 
 	if _, err := tx.ExecContext(ctx, "UPDATE reservation_slots SET slot = slot - 1 WHERE start_at >= ? AND end_at <= ?", req.StartAt, req.EndAt); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to update reservation_slot: "+err.Error())
 	}
 
-	rs, err := tx.NamedExecContext(ctx, "INSERT INTO livestreams (user_id, title, description, playlist_url, thumbnail_url, start_at, end_at) VALUES(:user_id, :title, :description, :playlist_url, :thumbnail_url, :start_at, :end_at)", livestreamModel)
-	if err != nil {
+	var livestreamID int64
+	if err := tx.GetContext(ctx, &livestreamID, "INSERT INTO livestreams (user_id, title, description, playlist_url, thumbnail_url, start_at, end_at) VALUES(?, ?, ?, ?, ?, ?, ?) RETURNING id", livestreamModel.UserID, livestreamModel.Title, livestreamModel.Description, livestreamModel.PlaylistUrl, livestreamModel.ThumbnailUrl, livestreamModel.StartAt, livestreamModel.EndAt); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livestream: "+err.Error())
 	}
 
-	livestreamID, err := rs.LastInsertId()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted livestream id: "+err.Error())
 	}
@@ -487,23 +484,23 @@ func getLivecommentReportsHandler(c echo.Context) error {
 func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel LivestreamModel) (Livestream, error) {
 	ownerModel := UserModel{}
 	if err := tx.GetContext(ctx, &ownerModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
-		return Livestream{}, err
+		return Livestream{}, fmt.Errorf("error fetch users: %w", err)
 	}
 	owner, err := fillUserResponse(ctx, tx, ownerModel)
 	if err != nil {
-		return Livestream{}, err
+		return Livestream{}, fmt.Errorf("error fetch fillUser: %w", err)
 	}
 
 	var livestreamTagModels []*LivestreamTagModel
 	if err := tx.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamModel.ID); err != nil {
-		return Livestream{}, err
+		return Livestream{}, fmt.Errorf("error fetch livestream_tags: %w", err)
 	}
 
 	tags := make([]Tag, len(livestreamTagModels))
 	for i := range livestreamTagModels {
 		tagModel := TagModel{}
 		if err := tx.GetContext(ctx, &tagModel, "SELECT * FROM tags WHERE id = ?", livestreamTagModels[i].TagID); err != nil {
-			return Livestream{}, err
+			return Livestream{}, fmt.Errorf("error fetch tags: %w", err)
 		}
 
 		tags[i] = Tag{

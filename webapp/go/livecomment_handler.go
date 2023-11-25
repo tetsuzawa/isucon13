@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -202,21 +203,8 @@ func postLivecommentHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get NG words: "+err.Error())
 	}
 
-	var hitSpam int
 	for _, ngword := range ngwords {
-		query := `
-		SELECT COUNT(*)
-		FROM
-		(SELECT ? AS text) AS texts
-		INNER JOIN
-		(SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
-		ON texts.text LIKE patterns.pattern;
-		`
-		if err := tx.GetContext(ctx, &hitSpam, query, req.Comment, ngword.Word); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get hitspam: "+err.Error())
-		}
-		c.Logger().Infof("[hitSpam=%d] comment = %s", hitSpam, req.Comment)
-		if hitSpam >= 1 {
+		if strings.Contains(req.Comment, ngword.Word) {
 			return echo.NewHTTPError(http.StatusBadRequest, "このコメントがスパム判定されました")
 		}
 	}
@@ -230,16 +218,12 @@ func postLivecommentHandler(c echo.Context) error {
 		CreatedAt:    now,
 	}
 
-	rs, err := tx.NamedExecContext(ctx, "INSERT INTO livecomments (user_id, livestream_id, comment, tip, created_at) VALUES (:user_id, :livestream_id, :comment, :tip, :created_at)", livecommentModel)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livecomment: "+err.Error())
-	}
-
-	livecommentID, err := rs.LastInsertId()
-	if err != nil {
+	var livecommentID int64
+	if err := tx.GetContext(ctx, &livecommentID, "INSERT INTO livecomments (user_id, livestream_id, comment, tip, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id", livecommentModel.UserID, livecommentModel.LivestreamID, livecommentModel.Comment, livecommentModel.Tip, livecommentModel.CreatedAt); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted livecomment id: "+err.Error())
 	}
 	livecommentModel.ID = livecommentID
+	println("ngword livecommentsID", livecommentID)
 
 	livecomment, err := fillLivecommentResponse(ctx, tx, livecommentModel)
 	if err != nil {
@@ -306,13 +290,9 @@ func reportLivecommentHandler(c echo.Context) error {
 		LivecommentID: int64(livecommentID),
 		CreatedAt:     now,
 	}
-	rs, err := tx.NamedExecContext(ctx, "INSERT INTO livecomment_reports(user_id, livestream_id, livecomment_id, created_at) VALUES (:user_id, :livestream_id, :livecomment_id, :created_at)", &reportModel)
-	if err != nil {
+	var reportID int64
+	if err := tx.GetContext(ctx, &reportID, "INSERT INTO livecomment_reports(user_id, livestream_id, livecomment_id, created_at) VALUES (?, ?, ?, ?) RETURNING id", reportModel.UserID, reportModel.LivestreamID, reportModel.LivecommentID, reportModel.CreatedAt); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert livecomment report: "+err.Error())
-	}
-	reportID, err := rs.LastInsertId()
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted livecomment report id: "+err.Error())
 	}
 	reportModel.ID = reportID
 
@@ -366,19 +346,9 @@ func moderateHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "A streamer can't moderate livestreams that other streamers own")
 	}
 
-	rs, err := tx.NamedExecContext(ctx, "INSERT INTO ng_words(user_id, livestream_id, word, created_at) VALUES (:user_id, :livestream_id, :word, :created_at)", &NGWord{
-		UserID:       int64(userID),
-		LivestreamID: int64(livestreamID),
-		Word:         req.NGWord,
-		CreatedAt:    time.Now().Unix(),
-	})
-	if err != nil {
+	var wordID int64
+	if err := tx.GetContext(ctx, &wordID, "INSERT INTO ng_words(user_id, livestream_id, word, created_at) VALUES (?, ?, ?, ?) RETURNING id", userID, livestreamID, req.NGWord, time.Now().Unix()); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new NG word: "+err.Error())
-	}
-
-	wordID, err := rs.LastInsertId()
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted NG word id: "+err.Error())
 	}
 
 	var ngwords []*NGWord
@@ -395,19 +365,16 @@ func moderateHandler(c echo.Context) error {
 		}
 
 		for _, livecomment := range livecomments {
+			if !strings.Contains(livecomment.Comment, ngword.Word) {
+				continue
+			}
 			query := `
 			DELETE FROM livecomments
 			WHERE
 			id = ? AND
-			livestream_id = ? AND
-			(SELECT COUNT(*)
-			FROM
-			(SELECT ? AS text) AS texts
-			INNER JOIN
-			(SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
-			ON texts.text LIKE patterns.pattern) >= 1;
+			livestream_id = ?;
 			`
-			if _, err := tx.ExecContext(ctx, query, livecomment.ID, livestreamID, livecomment.Comment, ngword.Word); err != nil {
+			if _, err := tx.ExecContext(ctx, query, livecomment.ID, livestreamID); err != nil {
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
 			}
 		}
