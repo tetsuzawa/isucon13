@@ -179,6 +179,11 @@ func postIconHandler(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate icon id: "+err.Error())
 		}
 		c.Logger().Debugf("ファイルを削除 : filename=%s", filename)
+		func() {
+			iconCacheLock.Lock()
+			defer iconCacheLock.Unlock()
+			delete(iconCache, filename)
+		}()
 	} else if os.IsNotExist(err) {
 		// do nothing
 		c.Logger().Debugf("ファイルが存在しないのでなにもしない: filename=%s", filename)
