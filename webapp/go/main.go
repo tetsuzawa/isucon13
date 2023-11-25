@@ -33,6 +33,7 @@ var (
 	powerDNSSubdomainAddress string
 	dbConn                   *sqlx.DB
 	secret                   = []byte("isucon13_session_cookiestore_defaultsecret")
+	AppVersion               string
 )
 
 func init() {
@@ -121,6 +122,7 @@ func initializeHandler(c echo.Context) error {
 }
 
 func main() {
+	initProfile()
 	tp, _ := initTracer(context.Background())
 	defer func() {
 		if err := tp.Shutdown(context.Background()); err != nil {
