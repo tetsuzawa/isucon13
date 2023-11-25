@@ -461,8 +461,8 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 	var iconHashStr string
 	filename := fmt.Sprintf("%s%s.jpeg", iconBasePath, userModel.Name)
 	func() {
-		lock := iconCacheLock.RLocker()
-		defer lock.Unlock()
+		iconCacheLock.RLock()
+		defer iconCacheLock.RUnlock()
 		if hash, ok := iconCache[filename]; ok {
 			iconHashStr = hash
 		}
