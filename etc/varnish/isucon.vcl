@@ -9,15 +9,15 @@ import std;
 #     .port = "8080";
 # }
 
-//backend isu1 {
-//    .host = "192.168.0.11";
-//    .port = "8080";
-//}
-
-backend isu2 {
-    .host = "192.168.0.12";
+backend isu1 {
+    .host = "192.168.0.11";
     .port = "8080";
 }
+
+# backend isu2 {
+#     .host = "192.168.0.12";
+#     .port = "8080";
+# }
 
 backend isu3 {
     .host = "192.168.0.13";
