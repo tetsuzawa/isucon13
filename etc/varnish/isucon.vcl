@@ -19,10 +19,10 @@ backend isu1 {
 #     .port = "8080";
 # }
 
-backend isu3 {
-    .host = "192.168.0.13";
-    .port = "8080";
-}
+//backend isu3 {
+//    .host = "192.168.0.13";
+//    .port = "8080";
+//}
 
 sub vcl_init {
     # ラウンドロビンでリクエストを送る
@@ -38,7 +38,7 @@ sub vcl_init {
     # vdir.add_backend(isu2, 5.0);
 
     vdir.add_backend(isu1, 5.0);
-    vdir.add_backend(isu3, 6.0);
+//    vdir.add_backend(isu3, 6.0);
 }
 
 # acl purge {
