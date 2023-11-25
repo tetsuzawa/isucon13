@@ -13,7 +13,7 @@ TRUNCATE TABLE users;
 
 ALTER SEQUENCE icons_id_seq RESTART WITH 1;
 ALTER SEQUENCE reservation_slots_id_seq RESTART WITH 8760;
-ALTER SEQUENCE livestream_tags_id_seq RESTART WITH 104;
+ALTER SEQUENCE livestream_tags_id_seq RESTART WITH 10967;
 ALTER SEQUENCE livestream_viewers_history_id_seq RESTART WITH 1;
 ALTER SEQUENCE livecomment_reports_id_seq RESTART WITH 1;
 ALTER SEQUENCE ng_words_id_seq RESTART WITH 14338;
