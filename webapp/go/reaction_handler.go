@@ -139,6 +139,9 @@ func postReactionHandler(c echo.Context) error {
 	if err := rdb.ZIncrBy(ctx, "ranking", 1, strconv.FormatInt(livestreamModel.UserID, 10)).Err(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment ranking: "+err.Error())
 	}
+	if err := rdb.Incr(ctx, fmt.Sprintf("total_reaction:%d", livestreamModel.ID)).Err(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment total_reaction: "+err.Error())
+	}
 
 	return c.JSON(http.StatusCreated, reaction)
 }
