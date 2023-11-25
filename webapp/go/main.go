@@ -5,6 +5,8 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -70,9 +72,6 @@ func initializeHandler(c echo.Context) error {
 		if err := rdb.IncrBy(ctx, fmt.Sprintf("total_reaction:%d", tr.UserID), tr.TotalReactionCount).Err(); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment total_reaction: "+err.Error())
 		}
-		if err := rdb.ZIncrBy(ctx, "ranking", 1, strconv.FormatInt(tr.UserID, 10)).Err(); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment ranking: "+err.Error())
-		}
 	}
 	type TotalViewer struct {
 		TotalViewerCount int64 `db:"total_viewer_count"`
@@ -112,6 +111,31 @@ GROUP BY emoji_name`
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment reaction: "+err.Error())
 			}
 		}
+
+		var reactions int64
+		query := `
+		SELECT COUNT(*) FROM users u
+		INNER JOIN livestreams l ON l.user_id = u.id
+		INNER JOIN reactions r ON r.livestream_id = l.id
+		WHERE u.id = ?`
+		if err := dbConn.GetContext(ctx, &reactions, query, user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to count reactions: "+err.Error())
+		}
+
+		var tips int64
+		query = `
+		SELECT COALESCE(SUM(l2.tip), 0) FROM users u
+		INNER JOIN livestreams l ON l.user_id = u.id	
+		INNER JOIN livecomments l2 ON l2.livestream_id = l.id
+		WHERE u.id = ?`
+		if err := dbConn.GetContext(ctx, &tips, query, user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to count tips: "+err.Error())
+		}
+		score := reactions + tips
+		if err := rdb.ZIncrBy(ctx, "ranking", float64(score), strconv.FormatInt(user.ID, 10)).Err(); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment ranking: "+err.Error())
+		}
+
 	}
 
 	type TotalComment struct {
@@ -126,9 +150,6 @@ GROUP BY emoji_name`
 	for _, tc := range tcs {
 		if err := rdb.IncrBy(ctx, fmt.Sprintf("total_comment:%d", tc.UserID), tc.TotalCommentCount).Err(); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment total_comment: "+err.Error())
-		}
-		if err := rdb.ZIncrBy(ctx, "ranking", float64(tc.TotalTip), strconv.FormatInt(tc.UserID, 10)).Err(); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment ranking: "+err.Error())
 		}
 	}
 
