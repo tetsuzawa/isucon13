@@ -355,27 +355,37 @@ func moderateHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get NG words: "+err.Error())
 	}
 
-	// NGワードにヒットする過去の投稿も全削除する
-	for _, ngword := range ngwords {
-		// ライブコメント一覧取得
-		var livecomments []*LivecommentModel
-		if err := tx.SelectContext(ctx, &livecomments, "SELECT * FROM livecomments"); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
-		}
+	var livecomments []*LivecommentModel
+	if err := tx.SelectContext(ctx, &livecomments, "SELECT * FROM livecomments"); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
+	}
 
-		for _, livecomment := range livecomments {
-			if !strings.Contains(livecomment.Comment, ngword.Word) {
-				continue
+	var deleteLivecommentIDs []int64
+	// NGワードにヒットする過去の投稿も全削除する
+	for _, livecomment := range livecomments {
+		for _, ngword := range ngwords {
+			// ライブコメント一覧取得
+			if strings.Contains(livecomment.Comment, ngword.Word) {
+				deleteLivecommentIDs = append(deleteLivecommentIDs, livecomment.ID)
 			}
-			query := `
+		}
+	}
+	if len(deleteLivecommentIDs) != 0 {
+		query, args, err := sqlx.In(`
 			DELETE FROM livecomments
 			WHERE
 			id = ? AND
-			livestream_id = ?;
-			`
-			if _, err := tx.ExecContext(ctx, query, livecomment.ID, livestreamID); err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
-			}
+			livestream_id IN (?);
+			`, livestreamID, deleteLivecommentIDs)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate in query: "+err.Error())
+		}
+
+		query = tx.Rebind(query)
+		c.Logger().Debugf("delete count: %v, query: %s, args: %v", len(deleteLivecommentIDs), query, args)
+
+		if _, err := tx.ExecContext(ctx, query, args); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
 		}
 	}
 
