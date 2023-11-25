@@ -16,6 +16,7 @@ ISUCON_DB_NAME=${ISUCON13_MYSQL_DIALCONFIG_DATABASE:-isupipe}
 psql -U isucon -d isupipe -h ${ISUCON_DB_HOST} -f "./init.sql";
 
 psql -h ${ISUCON_DB_HOST} -U isucon -d isupipe -c "\COPY isupipe.users FROM ./users.csv DELIMITER ',' CSV";
+psql -h ${ISUCON_DB_HOST} -U isucon -d isupipe -c "\COPY isupipe.themes FROM ./themes.csv DELIMITER ',' CSV";
 psql -h ${ISUCON_DB_HOST} -U isucon -d isupipe -c "\COPY isupipe.livestreams FROM ./livestreams.csv DELIMITER ',' CSV";
 psql -h ${ISUCON_DB_HOST} -U isucon -d isupipe -c "\COPY isupipe.tags FROM ./tags.csv DELIMITER ',' CSV";
 psql -h ${ISUCON_DB_HOST} -U isucon -d isupipe -c "\COPY isupipe.livestream_tags FROM ./livestream_tags.csv DELIMITER ',' CSV";
