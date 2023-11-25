@@ -190,7 +190,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 	// Prepare the query
 	query = "SELECT COUNT(*) FROM livestream_viewers_history WHERE livestream_id IN (?)"
 
-	query, args, err := sqlx.In(query, ids)
+	query, args, err = sqlx.In(query, ids)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare query: "+err.Error())
 	}
