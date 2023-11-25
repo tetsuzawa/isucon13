@@ -24,6 +24,6 @@ psql -U isucon -d isupipe -c "\COPY isupipe.reactions FROM ./reactions.csv DELIM
 psql -U isucon -d isupipe -c "\COPY isupipe.ng_words FROM ./ng_words.csv DELIMITER ',' CSV";
 psql -U isucon -d isupipe -c "\COPY isupipe.livecomments FROM ./livecomments.csv DELIMITER ',' CSV";
 
-bash ../pdns/init_zone.sh 
+bash ../../pdns/init_zone.sh 
 
 
