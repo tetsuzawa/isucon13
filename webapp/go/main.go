@@ -4,6 +4,7 @@ package main
 // sqlx的な参考: https://jmoiron.github.io/sqlx/
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -16,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
@@ -119,6 +121,13 @@ func initializeHandler(c echo.Context) error {
 }
 
 func main() {
+	tp, _ := initTracer(context.Background())
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			panic(err)
+		}
+	}()
+
 	e := echo.New()
 	e.Debug = true
 	e.Logger.SetLevel(echolog.DEBUG)
@@ -127,6 +136,7 @@ func main() {
 	cookieStore.Options.Domain = "*.u.isucon.dev"
 	e.Use(session.Middleware(cookieStore))
 	// e.Use(middleware.Recover())
+	e.Use(otelecho.Middleware("isupipe"))
 
 	// 初期化
 	e.POST("/api/initialize", initializeHandler)
@@ -185,7 +195,7 @@ func main() {
 	e.HTTPErrorHandler = errorResponseHandler
 
 	// DB接続
-	conn, err := connectDB(e.Logger)
+	conn, err := GetDB()
 	if err != nil {
 		e.Logger.Errorf("failed to connect db: %v", err)
 		os.Exit(1)
