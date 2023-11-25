@@ -151,22 +151,39 @@ func getUserStatisticsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
 	}
 
-	for _, livestream := range livestreams {
-		var livecomments []*LivecommentModel
-		if err := tx.SelectContext(ctx, &livecomments, "SELECT * FROM livecomments WHERE livestream_id = ?", livestream.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
-		}
-
-		for _, livecomment := range livecomments {
-			totalTip += livecomment.Tip
-			totalLivecomments++
-		}
-	}
-
 	var ids []int64
 	for _, livestream := range livestreams {
 		ids = append(ids, livestream.ID)
 	}
+
+	// Prepare the query
+	query = "SELECT COUNT(*) FROM livecomments WHERE livestream_id IN (?)"
+	var livecomments []*LivecommentModel
+	query, args, err := sqlx.In(query, ids)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare query: "+err.Error())
+	}
+
+	if err := tx.SelectContext(ctx, &livecomments, query, args...); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
+	}
+
+	for _, livecomment := range livecomments {
+		totalTip += livecomment.Tip
+		totalLivecomments++
+	}
+
+	// for _, livestream := range livestreams {
+	// 	var livecomments []*LivecommentModel
+	// 	if err := tx.SelectContext(ctx, &livecomments, "SELECT * FROM livecomments WHERE livestream_id = ?", livestream.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	// 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
+	// 	}
+
+	// 	for _, livecomment := range livecomments {
+	// 		totalTip += livecomment.Tip
+	// 		totalLivecomments++
+	// 	}
+	// }
 
 	var viewersCount int64
 
