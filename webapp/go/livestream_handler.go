@@ -202,7 +202,7 @@ func searchLivestreamsHandler(c echo.Context) error {
 		}
 
 		// Prepare the query
-		query = "SELECT * FROM livestreams WHERE livestream_id IN (?)"
+		query = "SELECT * FROM livestreams WHERE id IN (?)"
 		query, args, err := sqlx.In(query, livestreamsIds)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare query: "+err.Error())
