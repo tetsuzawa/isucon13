@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
-	"slices"
 	"sort"
 	"strconv"
 
@@ -117,7 +116,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 		} else {
 			members := ret.Val()
 			sort.Strings(members)
-			slices.Reverse(members)
+			// slices.Reverse(members)
 			for _, member := range members {
 				if member == userIDStr {
 					break
