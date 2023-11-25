@@ -4,6 +4,7 @@ package main
 // sqlx的な参考: https://jmoiron.github.io/sqlx/
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -16,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
@@ -31,6 +33,7 @@ var (
 	powerDNSSubdomainAddress string
 	dbConn                   *sqlx.DB
 	secret                   = []byte("isucon13_session_cookiestore_defaultsecret")
+	AppVersion               string
 )
 
 func init() {
@@ -123,8 +126,7 @@ func deleteAllIcon() {
 }
 
 func initializeHandler(c echo.Context) error {
-
-	if out, err := exec.Command("../sql/init.sh").CombinedOutput(); err != nil {
+	if out, err := exec.Command("../sql/pg/init.sh").CombinedOutput(); err != nil {
 		c.Logger().Warnf("init.sh failed with err=%s", string(out))
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
 	}
@@ -136,6 +138,14 @@ func initializeHandler(c echo.Context) error {
 }
 
 func main() {
+	initProfile()
+	tp, _ := initTracer(context.Background())
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			panic(err)
+		}
+	}()
+
 	var err error
 	idg, err = NewIDGenerator()
 
@@ -147,6 +157,7 @@ func main() {
 	cookieStore.Options.Domain = "*.u.isucon.dev"
 	e.Use(session.Middleware(cookieStore))
 	// e.Use(middleware.Recover())
+	e.Use(otelecho.Middleware("isupipe"))
 
 	// 初期化
 	e.POST("/api/initialize", initializeHandler)
@@ -205,7 +216,7 @@ func main() {
 	e.HTTPErrorHandler = errorResponseHandler
 
 	// DB接続
-	conn, err := connectDB(e.Logger)
+	conn, err := GetDB()
 	if err != nil {
 		e.Logger.Errorf("failed to connect db: %v", err)
 		os.Exit(1)

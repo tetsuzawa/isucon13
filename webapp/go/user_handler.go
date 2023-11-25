@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/labstack/gommon/log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -155,14 +155,9 @@ func postIconHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old user icon: "+err.Error())
 	}
 
-	rs, err := tx.ExecContext(ctx, "INSERT INTO icons (user_id, image) VALUES (?, ?)", userID, req.Image)
-	if err != nil {
+	var iconID int64
+	if err := tx.GetContext(ctx, &iconID, "INSERT INTO icons (user_id, image) VALUES (?, ?) RETURNING id", userID, req.Image); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new user icon: "+err.Error())
-	}
-
-	iconID, err := rs.LastInsertId()
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted icon id: "+err.Error())
 	}
 
 	// userame 取得
@@ -208,7 +203,7 @@ func postIconHandler(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, &PostIconResponse{
-		ID: int64(iconID),
+		ID: iconID,
 	})
 }
 
@@ -285,14 +280,9 @@ func registerHandler(c echo.Context) error {
 		HashedPassword: string(hashedPassword),
 	}
 
-	result, err := tx.NamedExecContext(ctx, "INSERT INTO users (name, display_name, description, password) VALUES(:name, :display_name, :description, :password)", userModel)
-	if err != nil {
+	var userID int64
+	if err := tx.GetContext(ctx, &userID, "INSERT INTO users (name, display_name, description, password) VALUES(?, ?, ?, ?) RETURNING id", userModel.Name, userModel.DisplayName, userModel.Description, userModel.HashedPassword); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert user: "+err.Error())
-	}
-
-	userID, err := result.LastInsertId()
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted user id: "+err.Error())
 	}
 
 	userModel.ID = userID
@@ -450,7 +440,7 @@ func verifyUserSession(c echo.Context) error {
 func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (User, error) {
 	themeModel := ThemeModel{}
 	if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userModel.ID); err != nil {
-		return User{}, err
+		return User{}, fmt.Errorf("failed to get theme: %w", err)
 	}
 
 	var iconHash [sha256.Size]byte
@@ -463,11 +453,11 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 		var image []byte
 		if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				return User{}, err
+				return User{}, fmt.Errorf("failed to get icon: %w", err)
 			}
 			image, err = os.ReadFile(fallbackImage)
 			if err != nil {
-				return User{}, err
+				return User{}, fmt.Errorf("failed to read fallback image: %w", err)
 			}
 		}
 		iconHash = sha256.Sum256(image)
