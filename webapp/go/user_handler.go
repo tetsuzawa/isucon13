@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -195,7 +196,7 @@ func postIconHandler(c echo.Context) error {
 	defer file.Close()
 
 	// パーミッションを777に設定
-	err = os.Chmod(filename, 0777)
+	err = os.Chmod(filename, 0o777)
 	if err != nil {
 		c.Logger().Errorf("パーミッションの変更に失敗しました: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate icon id: "+err.Error())
@@ -230,7 +231,7 @@ func getMeHandler(c echo.Context) error {
 	defer tx.Rollback()
 
 	userModel := UserModel{}
-	//err = tx.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", userID)
+	// err = tx.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", userID)
 	um, err := GetUserWithCache(ctx, tx, userID)
 	userModel = *um
 	if errors.Is(err, sql.ErrNoRows) {
@@ -442,6 +443,11 @@ func verifyUserSession(c echo.Context) error {
 	return nil
 }
 
+var (
+	iconCache     = map[int64]string
+	iconCacheLock sync.RWMutex
+)
+
 func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (User, error) {
 	//themeModel := ThemeModel{}
 	//if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userModel.ID); err != nil {
@@ -452,8 +458,35 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 		return User{}, fmt.Errorf("failed to get theme: %w", err)
 	}
 
-	var iconHash [sha256.Size]byte
+	var iconHashStr string
 	filename := fmt.Sprintf("%s%s.jpeg", iconBasePath, userModel.Name)
+	func() {
+		lock := iconCacheLock.RLocker()
+		defer lock.Unlock()
+		if hash, ok := iconCache[userModel.ID]; ok {
+			iconHashStr = hash
+		}
+	}()
+	if iconHashStr != "" {
+		user := User{
+			ID:          userModel.ID,
+			Name:        userModel.Name,
+			DisplayName: userModel.DisplayName,
+			Description: userModel.Description,
+			Theme: Theme{
+				ID:       themeModel.ID,
+				DarkMode: themeModel.DarkMode,
+			},
+			IconHash: iconHashStr,
+		}
+
+		return user, nil
+	}
+
+	var iconHash [sha256.Size]byte
+	iconCacheLock.Lock()
+	defer iconCacheLock.Unlock()
+
 	b, err := os.ReadFile(filename)
 	if err == nil {
 		iconHash = sha256.Sum256(b)
@@ -471,6 +504,8 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 		}
 		iconHash = sha256.Sum256(image)
 	}
+	iconCacheStr := fmt.Sprintf("%x", iconHash)
+	iconCache[filename] = iconCacheStr
 
 	user := User{
 		ID:          userModel.ID,
@@ -481,7 +516,7 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 			ID:       themeModel.ID,
 			DarkMode: themeModel.DarkMode,
 		},
-		IconHash: fmt.Sprintf("%x", iconHash),
+		IconHash: iconCacheStr,
 	}
 
 	return user, nil
