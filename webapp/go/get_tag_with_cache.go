@@ -40,6 +40,7 @@ func GetTagIDsByName(tagName string) []int {
 			tagIDs = append(tagIDs, int(tagID))
 		}
 	}
+	fmt.Println("tagIDs:", tagIDs)
 
 	return tagIDs
 }
