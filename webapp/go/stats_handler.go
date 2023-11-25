@@ -148,7 +148,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 	var totalLivecomments int64
 	var totalTip int64
 	var livestreams []*LivestreamModel
-	if err := tx.SelectContext(ctx, &livestreams, "SELECT * FROM livestreams WHERE user_id = ?", user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := tx.GetContext(ctx, &livestreams, "SELECT * FROM livestreams WHERE user_id = ?", user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
 	}
 
@@ -167,7 +167,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	var livecomments []*LivecommentModel
 	if err := tx.SelectContext(ctx, &livecomments, query, args...); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream_view_history: "+err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream_id: "+err.Error())
 	}
 
 	// for _, livestream := range livestreams {
