@@ -22,3 +22,4 @@
 /.cpanm/
 .perl-cpm/
 /local/
+/.git.bak/
