@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 )
 
 // select(tags): select id from tags where name = ?
@@ -19,6 +20,7 @@ func SelectAllTagsOnInit(ctx context.Context, db SelectContext) error {
 	for _, tag := range tags {
 		tagCache.Set(tag.ID, tag)
 	}
+	fmt.Println("tagCache:", tagCache.GetAll())
 	return nil
 }
 
