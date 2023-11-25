@@ -95,6 +95,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	var ranking UserRanking
 	for _, user := range users {
+		// リアクション数
 		var reactions int64
 		query := `
 		SELECT COUNT(*) FROM users u
@@ -157,9 +158,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 		ids = append(ids, livestream.ID)
 	}
 
-	query := "SELECT * FROM livecomments WHERE livestream_id IN (?)"
-
-	var livecomments []*LivecommentModel
+	query = "SELECT * FROM livecomments WHERE livestream_id IN (?)"
 
 	query, args, err := sqlx.In(query, ids)
 	if err != nil {
@@ -192,10 +191,10 @@ func getUserStatisticsHandler(c echo.Context) error {
 	var viewersCount int64
 
 	// livestream_id に紐づく視聴者数をIN句でまとめて取得
-	query := "SELECT COUNT(*) FROM livestream_viewers_history WHERE livestream_id IN (?)"
+	query = "SELECT COUNT(*) FROM livestream_viewers_history WHERE livestream_id IN (?)"
 
 	// Use query, args... to pass ids slice to the query
-	query, args, err := sqlx.In(query, ids)
+	query, args, err = sqlx.In(query, ids)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare query: "+err.Error())
 	}
