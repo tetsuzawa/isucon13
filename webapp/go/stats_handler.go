@@ -151,30 +151,47 @@ func getUserStatisticsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
 	}
 
-	for _, livestream := range livestreams {
-		var livecomments []*LivecommentModel
-		if err := tx.SelectContext(ctx, &livecomments, "SELECT * FROM livecomments WHERE livestream_id = ?", livestream.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
-		}
-
-		for _, livecomment := range livecomments {
-			totalTip += livecomment.Tip
-			totalLivecomments++
-		}
-	}
-
-	// 合計視聴者数
-	var viewersCount int64
-
-	// livestream_id に紐づく視聴者数をIN句でまとめて取得
-
 	// Extract the IDs from the livestreams
 	var ids []int64
 	for _, livestream := range livestreams {
 		ids = append(ids, livestream.ID)
 	}
 
-	// Prepare the query
+	query := "SELECT * FROM livecomments WHERE livestream_id IN (?)"
+
+	var livecomments []*LivecommentModel
+
+	query, args, err := sqlx.In(query, ids)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare query: "+err.Error())
+	}
+
+	var livecomments []*LivecommentModel
+	if err := tx.GetContext(ctx, &livecomments, query, args...); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream_view_history: "+err.Error())
+	}
+
+	// for _, livestream := range livestreams {
+	// 	var livecomments []*LivecommentModel
+	// 	if err := tx.SelectContext(ctx, &livecomments, "SELECT * FROM livecomments WHERE livestream_id = ?", livestream.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	// 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
+	// 	}
+
+	// 	for _, livecomment := range livecomments {
+	// 		totalTip += livecomment.Tip
+	// 		totalLivecomments++
+	// 	}
+	// }
+
+	for _, livecomment := range livecomments {
+		totalTip += livecomment.Tip
+		totalLivecomments++
+	}
+
+	// 合計視聴者数
+	var viewersCount int64
+
+	// livestream_id に紐づく視聴者数をIN句でまとめて取得
 	query := "SELECT COUNT(*) FROM livestream_viewers_history WHERE livestream_id IN (?)"
 
 	// Use query, args... to pass ids slice to the query
