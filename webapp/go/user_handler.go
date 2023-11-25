@@ -391,17 +391,17 @@ func verifyUserSession(c echo.Context) error {
 func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (User, error) {
 	themeModel := ThemeModel{}
 	if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userModel.ID); err != nil {
-		return User{}, err
+		return User{}, fmt.Errorf("failed to get theme: %w", err)
 	}
 
 	var image []byte
 	if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
-			return User{}, err
+			return User{}, fmt.Errorf("failed to get icon: %w", err)
 		}
 		image, err = os.ReadFile(fallbackImage)
 		if err != nil {
-			return User{}, err
+			return User{}, fmt.Errorf("failed to read fallback image: %w", err)
 		}
 	}
 	iconHash := sha256.Sum256(image)
