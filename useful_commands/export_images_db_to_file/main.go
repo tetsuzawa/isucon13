@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 
 	// mysql
-	_ "github.com/go-sql-driver/mysql"
+	//_ "github.com/go-sql-driver/mysql"
 	// postgres
-	//_ "github.com/mackee/pgx-replaced"
+	_ "github.com/mackee/pgx-replaced"
 )
 
 type Icon struct {
