@@ -488,7 +488,7 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 	}
 	owner, err := fillUserResponse(ctx, tx, ownerModel)
 	if err != nil {
-		return Livestream{}, err
+		return Livestream{}, fmt.Errorf("error fetch fillUser: %w", err)
 	}
 
 	var livestreamTagModels []*LivestreamTagModel
