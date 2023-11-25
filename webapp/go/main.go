@@ -79,7 +79,7 @@ func initializeHandler(c echo.Context) error {
 		UserID           int64 `db:"user_id"`
 	}
 	var tvs []TotalViewer
-	if err := dbConn.SelectContext(ctx, &tvs, "SELECT l.user_id, COUNT(*) AS total_viewer_count FROM livestream_viewers_history lv INNER JOIN livestream l ON l.id = lv.livestream_id GROUP BY l.user_id"); err != nil {
+	if err := dbConn.SelectContext(ctx, &tvs, "SELECT l.user_id, COUNT(*) AS total_viewer_count FROM livestream_viewers_history lv INNER JOIN livestreams l ON l.id = lv.livestream_id GROUP BY l.user_id"); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select viewers: "+err.Error())
 	}
 	for _, tv := range tvs {
