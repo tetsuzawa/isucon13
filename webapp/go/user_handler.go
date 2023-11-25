@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -189,6 +191,7 @@ func postIconHandler(c echo.Context) error {
 		c.Logger().Errorf("ファイルの作成に失敗しました: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate icon id: "+err.Error())
 	}
+	io.Copy(file, bytes.NewReader(req.Image))
 	defer file.Close()
 
 	// パーミッションを777に設定
