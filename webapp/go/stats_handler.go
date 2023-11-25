@@ -3,7 +3,9 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 
@@ -95,6 +97,37 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	userIDStr := strconv.FormatInt(user.ID, 10)
 	var rank int64
+	if ret := rdb.ZScore(ctx, "ranking", userIDStr); ret.Err() == redis.Nil {
+		// nop
+	} else if ret.Err() != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get score: "+ret.Err().Error())
+	} else {
+		score := ret.Val()
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to convert score to int64: "+err.Error())
+		}
+		scoreStr := fmt.Sprintf("%f.0", score)
+		if ret := rdb.ZCount(ctx, "ranking", scoreStr, "+inf"); ret.Err() != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get rank: "+ret.Err().Error())
+		}
+		rank = int64(ret.Val()) + 1
+		if ret := rdb.ZRangeByScore(ctx, "ranking", &redis.ZRangeBy{
+			Min: scoreStr, Max: scoreStr,
+		}); ret.Err() != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get rank: "+ret.Err().Error())
+		} else {
+			members := ret.Val()
+			sort.Strings(members)
+			slices.Reverse(members)
+			for _, member := range members {
+				if member == userIDStr {
+					break
+				}
+				rank++
+			}
+		}
+	}
+
 	if ret := rdb.ZRevRank(ctx, "ranking", userIDStr); ret.Err() != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get rank: "+ret.Err().Error())
 	} else {
