@@ -144,18 +144,28 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	// お気に入り絵文字
 	var favoriteEmoji string
-	query = `
-	SELECT r.emoji_name
-	FROM users u
-	INNER JOIN livestreams l ON l.user_id = u.id
-	INNER JOIN reactions r ON r.livestream_id = l.id
-	WHERE u.name = ?
-	GROUP BY emoji_name
-	ORDER BY COUNT(*) DESC, emoji_name DESC
-	LIMIT 1
-	`
-	if err := tx.GetContext(ctx, &favoriteEmoji, query, username); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to find favorite emoji: "+err.Error())
+	if ret := rdb.ZRevRangeWithScores(ctx, "favorite_emoji:"+userIDStr, 0, 10); ret.Err() != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get favorite emojis: "+ret.Err().Error())
+	} else {
+		rs, err := ret.Result()
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get favorite emojis: "+err.Error())
+		}
+		if len(rs) > 0 {
+			var score float64
+			favoriteEmoji, score = rs[0].Member.(string), rs[0].Score
+			if len(rs) > 1 {
+				for _, r := range rs[1:] {
+					if r.Score != score {
+						break
+					}
+					member := r.Member.(string)
+					if favoriteEmoji < member {
+						favoriteEmoji = member
+					}
+				}
+			}
+		}
 	}
 
 	stats := UserStatistics{
