@@ -133,14 +133,30 @@ func postReactionHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
 
+	var livestreamModel LivestreamModel
+	if err := dbConn.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
+	}
+	var userModel UserModel
+	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
+	}
+	sfs.Forget(userModel.Name)
+
 	return c.JSON(http.StatusCreated, reaction)
 }
 
 func fillReactionResponse(ctx context.Context, tx *sqlx.Tx, reactionModel ReactionModel) (Reaction, error) {
-	userModel := UserModel{}
-	if err := tx.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", reactionModel.UserID); err != nil {
+	//userModel := UserModel{}
+	//if err := tx.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", reactionModel.UserID); err != nil {
+	//	return Reaction{}, err
+	//}
+	um, err := GetUserWithCache(ctx, tx, reactionModel.UserID)
+	if err != nil {
 		return Reaction{}, err
 	}
+	userModel := *um
+
 	user, err := fillUserResponse(ctx, tx, userModel)
 	if err != nil {
 		return Reaction{}, err

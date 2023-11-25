@@ -194,14 +194,32 @@ func searchLivestreamsHandler(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get keyTaggedLivestreams: "+err.Error())
 		}
 
-		for _, keyTaggedLivestream := range keyTaggedLivestreams {
-			ls := LivestreamModel{}
-			if err := tx.GetContext(ctx, &ls, "SELECT * FROM livestreams WHERE id = ?", keyTaggedLivestream.LivestreamID); err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
-			}
+		// keyTaggedLivestreamsのlivestream_idを元にIN句でlivestreamsを取得
 
-			livestreamModels = append(livestreamModels, &ls)
+		var livestreamsIds []int64
+		for _, keyTaggedLivestream := range keyTaggedLivestreams {
+			livestreamsIds = append(livestreamsIds, keyTaggedLivestream.LivestreamID)
 		}
+
+		// Prepare the query
+		query = "SELECT * FROM livestreams WHERE id IN (?) ORDER BY id DESC"
+		query, args, err := sqlx.In(query, livestreamsIds)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare query: "+err.Error())
+		}
+
+		if err := tx.SelectContext(ctx, &livestreamModels, query, args...); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
+		}
+
+		// for _, keyTaggedLivestream := range keyTaggedLivestreams {
+		// 	ls := LivestreamModel{}
+		// 	if err := tx.GetContext(ctx, &ls, "SELECT * FROM livestreams WHERE id = ?", keyTaggedLivestream.LivestreamID); err != nil {
+		// 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
+		// 	}
+
+		// 	livestreamModels = append(livestreamModels, &ls)
+		// }
 	} else {
 		// 検索条件なし
 		query := `SELECT * FROM livestreams ORDER BY id DESC`
@@ -351,6 +369,15 @@ func enterLivestreamHandler(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
+	var livestreamModel LivestreamModel
+	if err := dbConn.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
+	}
+	var userModel UserModel
+	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
+	}
+	sfs.Forget(userModel.Name)
 
 	return c.NoContent(http.StatusOK)
 }
@@ -385,6 +412,15 @@ func exitLivestreamHandler(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
+	var livestreamModel LivestreamModel
+	if err := dbConn.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
+	}
+	var userModel UserModel
+	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
+	}
+	sfs.Forget(userModel.Name)
 
 	return c.NoContent(http.StatusOK)
 }
@@ -482,17 +518,28 @@ func getLivecommentReportsHandler(c echo.Context) error {
 }
 
 func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel LivestreamModel) (Livestream, error) {
-	ownerModel := UserModel{}
-	if err := tx.GetContext(ctx, &ownerModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
+	//ownerModel := UserModel{}
+	//if err := tx.GetContext(ctx, &ownerModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
+	//	return Livestream{}, fmt.Errorf("error fetch users: %w", err)
+	//}
+
+	userModel, err := GetUserWithCache(ctx, tx, livestreamModel.UserID)
+	if err != nil {
 		return Livestream{}, fmt.Errorf("error fetch users: %w", err)
 	}
+	ownerModel := *userModel
+
 	owner, err := fillUserResponse(ctx, tx, ownerModel)
 	if err != nil {
 		return Livestream{}, fmt.Errorf("error fetch fillUser: %w", err)
 	}
 
-	var livestreamTagModels []*LivestreamTagModel
-	if err := tx.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamModel.ID); err != nil {
+	//var livestreamTagModels []*LivestreamTagModel
+	//if err := tx.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamModel.ID); err != nil {
+	//	return Livestream{}, fmt.Errorf("error fetch livestream_tags: %w", err)
+	//}
+	livestreamTagModels, err := GetTagWithCache(ctx, tx, livestreamModel.ID)
+	if err != nil {
 		return Livestream{}, fmt.Errorf("error fetch livestream_tags: %w", err)
 	}
 
