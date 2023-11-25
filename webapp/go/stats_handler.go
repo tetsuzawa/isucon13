@@ -166,7 +166,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 	}
 
 	var livecomments []*LivecommentModel
-	if err := tx.GetContext(ctx, &livecomments, query, args...); err != nil {
+	if err := tx.SelectContext(ctx, &livecomments, query, args...); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream_view_history: "+err.Error())
 	}
 
@@ -199,7 +199,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare query: "+err.Error())
 	}
 
-	if err := tx.GetContext(ctx, &viewersCount, query, args...); err != nil {
+	if err := tx.SelectContext(ctx, &viewersCount, query, args...); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream_view_history: "+err.Error())
 	}
 
