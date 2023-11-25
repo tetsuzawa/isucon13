@@ -157,7 +157,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 	}
 
 	// Prepare the query
-	query = "SELECT COUNT(*) FROM livecomments WHERE livestream_id IN (?)"
+	query = "SELECT * FROM livecomments WHERE livestream_id IN (?)"
 	var livecomments []*LivecommentModel
 	query, args, err := sqlx.In(query, ids)
 	if err != nil {
