@@ -233,12 +233,6 @@ func postLivecommentHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
 
-	var userModel UserModel
-	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
-	}
-	sfs.Forget(userModel.Name)
-
 	return c.JSON(http.StatusCreated, livecomment)
 }
 
@@ -388,15 +382,6 @@ func moderateHandler(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
-	var livestreamModel LivestreamModel
-	if err := dbConn.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
-	}
-	var userModel UserModel
-	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
-	}
-	sfs.Forget(userModel.Name)
 
 	return c.JSON(http.StatusCreated, map[string]interface{}{
 		"word_id": wordID,

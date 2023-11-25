@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
@@ -242,6 +243,10 @@ func getUserStatisticsHandler(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user statistics: "+err.Error())
 	}
+	go func() {
+		time.Sleep(1 * time.Second)
+		sfs.Forget(username)
+	}()
 	stats := v.(*UserStatistics)
 	return c.JSON(http.StatusOK, *stats)
 }
