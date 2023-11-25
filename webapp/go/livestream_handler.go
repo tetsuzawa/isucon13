@@ -370,6 +370,15 @@ func enterLivestreamHandler(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
+	var livestreamModel LivestreamModel
+	if err := dbConn.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
+	}
+	var userModel UserModel
+	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
+	}
+	sfs.Forget(userModel.Name)
 
 	return c.NoContent(http.StatusOK)
 }
@@ -404,6 +413,15 @@ func exitLivestreamHandler(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
+	var livestreamModel LivestreamModel
+	if err := dbConn.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
+	}
+	var userModel UserModel
+	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
+	}
+	sfs.Forget(userModel.Name)
 
 	return c.NoContent(http.StatusOK)
 }
