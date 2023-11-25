@@ -139,7 +139,7 @@ func postReactionHandler(c echo.Context) error {
 	if err := rdb.ZIncrBy(ctx, "ranking", 1, strconv.FormatInt(livestreamModel.UserID, 10)).Err(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment ranking: "+err.Error())
 	}
-	if err := rdb.Incr(ctx, fmt.Sprintf("total_reaction:%d", livestreamModel.ID)).Err(); err != nil {
+	if err := rdb.Incr(ctx, fmt.Sprintf("total_reaction:%d", livestreamModel.UserID)).Err(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment total_reaction: "+err.Error())
 	}
 	if err := rdb.ZIncrBy(ctx, fmt.Sprintf("favorite_emoji:%d", livestreamModel.UserID), 1, reactionModel.EmojiName).Err(); err != nil {

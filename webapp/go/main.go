@@ -13,7 +13,6 @@ import (
 	"os/exec"
 	"strconv"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -47,87 +46,7 @@ type InitializeResponse struct {
 	Language string `json:"language"`
 }
 
-func connectDB(logger echo.Logger) (*sqlx.DB, error) {
-	const (
-		networkTypeEnvKey = "ISUCON13_MYSQL_DIALCONFIG_NET"
-		addrEnvKey        = "ISUCON13_MYSQL_DIALCONFIG_ADDRESS"
-		portEnvKey        = "ISUCON13_MYSQL_DIALCONFIG_PORT"
-		userEnvKey        = "ISUCON13_MYSQL_DIALCONFIG_USER"
-		passwordEnvKey    = "ISUCON13_MYSQL_DIALCONFIG_PASSWORD"
-		dbNameEnvKey      = "ISUCON13_MYSQL_DIALCONFIG_DATABASE"
-		parseTimeEnvKey   = "ISUCON13_MYSQL_DIALCONFIG_PARSETIME"
-	)
-
-	conf := mysql.NewConfig()
-
-	// 環境変数がセットされていなかった場合でも一旦動かせるように、デフォルト値を入れておく
-	// この挙動を変更して、エラーを出すようにしてもいいかもしれない
-	conf.Net = "tcp"
-	conf.Addr = net.JoinHostPort("127.0.0.1", "3306")
-	conf.User = "isucon"
-	conf.Passwd = "isucon"
-	conf.DBName = "isupipe"
-	conf.ParseTime = true
-
-	if v, ok := os.LookupEnv(networkTypeEnvKey); ok {
-		conf.Net = v
-	}
-	if addr, ok := os.LookupEnv(addrEnvKey); ok {
-		if port, ok2 := os.LookupEnv(portEnvKey); ok2 {
-			conf.Addr = net.JoinHostPort(addr, port)
-		} else {
-			conf.Addr = net.JoinHostPort(addr, "3306")
-		}
-	}
-	if v, ok := os.LookupEnv(userEnvKey); ok {
-		conf.User = v
-	}
-	if v, ok := os.LookupEnv(passwordEnvKey); ok {
-		conf.Passwd = v
-	}
-	if v, ok := os.LookupEnv(dbNameEnvKey); ok {
-		conf.DBName = v
-	}
-	if v, ok := os.LookupEnv(parseTimeEnvKey); ok {
-		parseTime, err := strconv.ParseBool(v)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse environment variable '%s' as bool: %+v", parseTimeEnvKey, err)
-		}
-		conf.ParseTime = parseTime
-	}
-
-	db, err := sqlx.Open("mysql", conf.FormatDSN())
-	if err != nil {
-		return nil, err
-	}
-	db.SetMaxOpenConns(10)
-
-	if err := db.Ping(); err != nil {
-		return nil, err
-	}
-
-	return db, nil
-}
-
-func deleteAllIcon() {
-	// bashを使用しないとglobが展開されない
-	// 注意: 引数を''をくくるとうまく動かない
-	//cmd := exec.Command("bash", "-c", "rm -rfv /home/isucon/private_isu/webapp/public/image/*")
-
-	// 注意: 実行権限を忘れずに
-	cmd := exec.Command("bash", "-c", "/home/isucon/delete_all_icon.sh")
-	fmt.Printf("running command: `%s`\n", cmd.String())
-	output, err := cmd.Output()
-
-	if err != nil {
-		log.Fatalf("command exec error: %v", err)
-	}
-	fmt.Printf("command output: %s\n", output)
-}
-
 func initializeHandler(c echo.Context) error {
-	deleteAllIcon()
-
 	if out, err := exec.Command("../sql/pg/init.sh").CombinedOutput(); err != nil {
 		c.Logger().Warnf("init.sh failed with err=%s", string(out))
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
@@ -135,8 +54,82 @@ func initializeHandler(c echo.Context) error {
 
 	c.Request().Header.Add("Content-Type", "application/json;charset=utf-8")
 
-	if err := rdb.FlushAll(c.Request().Context()).Err(); err != nil {
+	ctx := c.Request().Context()
+	if err := rdb.FlushAll(ctx).Err(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to flush redis: "+err.Error())
+	}
+	type TotalReaction struct {
+		TotalReactionCount int64 `db:"total_reaction_count"`
+		UserID             int64 `db:"user_id"`
+	}
+	var trs []TotalReaction
+	if err := dbConn.SelectContext(ctx, &trs, "SELECT user_id, COUNT(*) AS total_reaction_count FROM livestreams l INNER JOIN reactions r l.id = r.livestream_id GROUP BY l.user_id"); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select reactions: "+err.Error())
+	}
+	for _, tr := range trs {
+		if err := rdb.IncrBy(ctx, fmt.Sprintf("total_reaction:%d", tr.UserID), tr.TotalReactionCount).Err(); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment total_reaction: "+err.Error())
+		}
+		if err := rdb.ZIncrBy(ctx, "ranking", 1, strconv.FormatInt(tr.UserID, 10)).Err(); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment ranking: "+err.Error())
+		}
+	}
+	type TotalViewer struct {
+		TotalViewerCount int64 `db:"total_viewer_count"`
+		UserID           int64 `db:"user_id"`
+	}
+	var tvs []TotalViewer
+	if err := dbConn.SelectContext(ctx, &tvs, "SELECT user_id, COUNT(*) AS total_viewer_count FROM livestream_viewers_history lv INNER JOIN livestream l l.id = lv.livestream_id GROUP BY l.user_id"); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select viewers: "+err.Error())
+	}
+	for _, tv := range tvs {
+		if err := rdb.IncrBy(ctx, fmt.Sprintf("livestream_viewers:%d", tv.UserID), tv.TotalViewerCount).Err(); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment livestream_viewers: "+err.Error())
+		}
+	}
+	var users []User
+	if err := dbConn.SelectContext(ctx, &users, "SELECT id, name FROM users"); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select users: "+err.Error())
+	}
+	for _, user := range users {
+		type EmojiCount struct {
+			EmojiName string `db:"emoji_name"`
+			Count     int64  `db:"cnt"`
+		}
+		q := `
+ELECT r.emoji_name, COUNT(*) AS cnt
+FROM users u
+INNER JOIN livestreams l ON l.user_id = u.id
+INNER JOIN reactions r ON r.livestream_id = l.id
+WHERE u.name = ?
+GROUP BY emoji_name`
+		var ecs []EmojiCount
+		if err := dbConn.SelectContext(ctx, &ecs, q, user.Name); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to select emoji_name: "+err.Error())
+		}
+		for _, ec := range ecs {
+			if err := rdb.ZIncrBy(ctx, fmt.Sprintf("favorite_emoji:%d", user.ID), float64(ec.Count), ec.EmojiName).Err(); err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment reaction: "+err.Error())
+			}
+		}
+	}
+
+	type TotalComment struct {
+		TotalCommentCount int64 `db:"total_comment_count"`
+		TotalTip          int64 `db:"total_tip"`
+		UserID            int64 `db:"user_id"`
+	}
+	var tcs []TotalComment
+	if err := dbConn.SelectContext(ctx, &tcs, "SELECT user_id, COUNT(*) AS total_comment_count, SUM(tip) AS total_tip FROM livecomments c INNER JOIN livestreams l c.livestream_id = l.id GROUP BY l.user_id"); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select comments: "+err.Error())
+	}
+	for _, tc := range tcs {
+		if err := rdb.IncrBy(ctx, fmt.Sprintf("total_comment:%d", tc.UserID), tc.TotalCommentCount).Err(); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment total_comment: "+err.Error())
+		}
+		if err := rdb.ZIncrBy(ctx, "ranking", float64(tc.TotalTip), strconv.FormatInt(tc.UserID, 10)).Err(); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment ranking: "+err.Error())
+		}
 	}
 
 	return c.JSON(http.StatusOK, InitializeResponse{
@@ -152,9 +145,6 @@ func main() {
 			panic(err)
 		}
 	}()
-
-	var err error
-	idg, err = NewIDGenerator()
 
 	e := echo.New()
 	e.Debug = true

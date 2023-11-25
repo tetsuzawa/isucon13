@@ -94,7 +94,7 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	userIDStr := strconv.FormatInt(user.ID, 10)
 	var rank int64
-	if ret := rdb.ZRank(ctx, "ranking", userIDStr); ret.Err() != nil {
+	if ret := rdb.ZRevRank(ctx, "ranking", userIDStr); ret.Err() != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get rank: "+ret.Err().Error())
 	} else {
 		rank = ret.Val() + 1
