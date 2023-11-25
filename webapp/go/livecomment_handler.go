@@ -385,6 +385,16 @@ func moderateHandler(c echo.Context) error {
 			if _, err := tx.ExecContext(ctx, query, livecomment.ID, livestreamID); err != nil {
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
 			}
+			if err := rdb.Decr(ctx, fmt.Sprintf("total_comments:%d", livestreamID)).Err(); err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to decrement total_comments: "+err.Error())
+			}
+			if err := rdb.DecrBy(ctx, fmt.Sprintf("total_tip:%d", livestreamID), livecomment.Tip).Err(); err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to decrement total_tip: "+err.Error())
+			}
+			if err := rdb.ZIncrBy(ctx, "ranking", float64(-livecomment.Tip), strconv.FormatInt(userID, 10)).Err(); err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to decrement ranking: "+err.Error())
+			}
+
 		}
 	}
 
