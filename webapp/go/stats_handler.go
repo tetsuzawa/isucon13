@@ -113,21 +113,21 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	// ライブコメント数、チップ合計
 	var totalLivecomments int64
-	var totalTip int64
-	var livestreams []*LivestreamModel
-	if err := tx.SelectContext(ctx, &livestreams, "SELECT * FROM livestreams WHERE user_id = ?", user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
-	}
-
-	for _, livestream := range livestreams {
-		var livecomments []*LivecommentModel
-		if err := tx.SelectContext(ctx, &livecomments, "SELECT * FROM livecomments WHERE livestream_id = ?", livestream.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
+	if ret := rdb.Get(ctx, "total_comments:"+userIDStr); ret.Err() != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get total livecomments: "+ret.Err().Error())
+	} else {
+		totalLivecomments, err = ret.Int64()
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to convert total livecomments to int64: "+err.Error())
 		}
-
-		for _, livecomment := range livecomments {
-			totalTip += livecomment.Tip
-			totalLivecomments++
+	}
+	var totalTip int64
+	if ret := rdb.Get(ctx, "total_tip:"+userIDStr); ret.Err() != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get total tip: "+ret.Err().Error())
+	} else {
+		totalTip, err = ret.Int64()
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to convert total tip to int64: "+err.Error())
 		}
 	}
 

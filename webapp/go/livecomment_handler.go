@@ -235,6 +235,12 @@ func postLivecommentHandler(c echo.Context) error {
 	if err := rdb.ZIncrBy(ctx, "ranking", float64(req.Tip), strconv.FormatInt(livestreamModel.UserID, 10)).Err(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment ranking: "+err.Error())
 	}
+	if err := rdb.IncrBy(ctx, fmt.Sprintf("total_tip:%d", livestreamModel.UserID), req.Tip).Err(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment total_tip: "+err.Error())
+	}
+	if err := rdb.Incr(ctx, fmt.Sprintf("total_comments:%d", livestreamModel.UserID)).Err(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to increment total_comments: "+err.Error())
+	}
 
 	return c.JSON(http.StatusCreated, livecomment)
 }
