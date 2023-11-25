@@ -18,7 +18,7 @@ result_dir=$HOME/result
 mkdir -p ${result_dir}
 
 # journal log
-sudo journalctl -e -nall -ocat -u isucon.go.service --since="${prepared_time}" > "${app_journal_log}"
+sudo journalctl -e -nall -ocat -u isupipe-go.service --since="${prepared_time}" > "${app_journal_log}"
 sudo journalctl -e -nall -ocat -u openresty.service --since="${prepared_time}" > "${nginx_journal_log}"
 
 # alp
@@ -26,7 +26,9 @@ sudo journalctl -e -nall -ocat -u openresty.service --since="${prepared_time}" >
 #ALPM="/@.+,/posts/\d+,/image/\d+.(jpg|png|gif),/posts?max_created_at.*$"
 #ALPM="/api/courses/[a-zA-Z0-9]+$,/api/courses/[a-zA-Z0-9]+/status,/api/courses/[a-zA-Z0-9]+/classes,/api/courses/[a-zA-Z0-9]+/classes/[a-zA-Z0-9]+/assignments,/api/courses/[a-zA-Z0-9]+/classes/[a-zA-Z0-9]+/assignments/scores,/api/courses/[a-zA-Z0-9]+/classes/[a-zA-Z0-9]+/assignments/export,/api/announcements/[a-zA-Z0-9]+$"
 #ALPM="/initialize,/api/admin/clarifications,/api/admin/clarifications/\d,/api/session,/api/audience/teams,/api/audience/dashboard,/api/registration/session,/api/registration/team,/api/registration/contestant,/api/registration,/api/registration,/api/contestant/benchmark_jobs,/api/contestant/benchmark_jobs/\d,/api/contestant/clarifications,/api/contestant/clarifications,/api/contestant/dashboard,/api/contestant/notifications,/api/contestant/push_subscriptions,/api/contestant/push_subscriptions,/api/signup,/api/login,/api/logout"
-ALPM="/api/organizer/player/[a-zA-Z0-9-_]+/disqualified,/api/organizer/competition/[a-zA-Z0-9-_]+/finish,/api/organizer/competition/[a-zA-Z0-9-_]+/score,/api/player/player/[a-zA-Z0-9-_]+,/api/player/competition/[a-zA-Z0-9-_]+/ranking"
+#ALPM="/api/organizer/player/[a-zA-Z0-9-_]+/disqualified,/api/organizer/competition/[a-zA-Z0-9-_]+/finish,/api/organizer/competition/[a-zA-Z0-9-_]+/score,/api/player/player/[a-zA-Z0-9-_]+,/api/player/competition/[a-zA-Z0-9-_]+/ranking"
+ALPM="/api/user/[a-zA-Z0-9-_]+/theme,/api/user/[a-zA-Z0-9-_]+/livestream,/api/livestream/[a-zA-Z0-9-_]+,^/api/livestream/[a-zA-Z0-9-_]+$/livecomment,/api/livestream/[a-zA-Z0-9-_]+/livecomment,/api/livestream/[a-zA-Z0-9-_]+/reaction,/api/livestream/[a-zA-Z0-9-_]+/reaction,/api/livestream/[a-zA-Z0-9-_]+/report,/api/livestream/[a-zA-Z0-9-_]+/ngwords,/api/livestream/[a-zA-Z0-9-_]+/livecomment/[a-zA-Z0-9-_]+/report,/api/livestream/[a-zA-Z0-9-_]+/moderate,/api/livestream/[a-zA-Z0-9-_]+/enter,/api/livestream/[a-zA-Z0-9-_]+/exit,^/api/user/[a-zA-Z0-9-_]+$,/api/user/[a-zA-Z0-9-_]+/statistics,/api/user/[a-zA-Z0-9-_]+/icon,/api/livestream/[a-zA-Z0-9-_]+/statistics"
+
 
 echo -e "\n# ALPの集計結果"
 
