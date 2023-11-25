@@ -444,7 +444,7 @@ func verifyUserSession(c echo.Context) error {
 }
 
 var (
-	iconCache     = map[int64]string
+	iconCache     = map[string]string{}
 	iconCacheLock sync.RWMutex
 )
 
@@ -463,7 +463,7 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 	func() {
 		lock := iconCacheLock.RLocker()
 		defer lock.Unlock()
-		if hash, ok := iconCache[userModel.ID]; ok {
+		if hash, ok := iconCache[filename]; ok {
 			iconHashStr = hash
 		}
 	}()
