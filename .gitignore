@@ -19,3 +19,6 @@
 /go
 /log
 /result
+/.cpanm/
+.perl-cpm/
+/local/
