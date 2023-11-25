@@ -144,14 +144,9 @@ func postIconHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old user icon: "+err.Error())
 	}
 
-	rs, err := tx.ExecContext(ctx, "INSERT INTO icons (user_id, image) VALUES (?, ?)", userID, req.Image)
-	if err != nil {
+	var iconID int64
+	if err := tx.GetContext(ctx, &iconID, "INSERT INTO icons (user_id, image) VALUES (?, ?) RETURNING id", userID, req.Image); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new user icon: "+err.Error())
-	}
-
-	iconID, err := rs.LastInsertId()
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted icon id: "+err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -236,14 +231,9 @@ func registerHandler(c echo.Context) error {
 		HashedPassword: string(hashedPassword),
 	}
 
-	result, err := tx.NamedExecContext(ctx, "INSERT INTO users (name, display_name, description, password) VALUES(:name, :display_name, :description, :password)", userModel)
-	if err != nil {
+	var userID int64
+	if err := tx.GetContext(ctx, &userID, "INSERT INTO users (name, display_name, description, password) VALUES(?, ?, ?, ?) RETURNING id", userModel.Name, userModel.DisplayName, userModel.Description, userModel.HashedPassword); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert user: "+err.Error())
-	}
-
-	userID, err := result.LastInsertId()
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted user id: "+err.Error())
 	}
 
 	userModel.ID = userID
