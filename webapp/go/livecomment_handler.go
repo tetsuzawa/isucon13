@@ -206,7 +206,7 @@ func postLivecommentHandler(c echo.Context) error {
 	var hitSpam int
 	for _, ngword := range ngwords {
 		if !strings.Contains(req.Comment, ngword.Word) {
-			println("ngword", ngword.Word, "comment", req.Comment)
+			println("ngword", ngword.Word, "comment", req.Comment, "id", ngword.ID)
 			continue
 		}
 		c.Logger().Infof("[hitSpam=%d] comment = %s", hitSpam, req.Comment)
@@ -229,6 +229,7 @@ func postLivecommentHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted livecomment id: "+err.Error())
 	}
 	livecommentModel.ID = livecommentID
+	println("ngword livecommentsID", livecommentID)
 
 	livecomment, err := fillLivecommentResponse(ctx, tx, livecommentModel)
 	if err != nil {
