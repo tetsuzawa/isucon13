@@ -162,7 +162,7 @@ func postIconHandler(c echo.Context) error {
 
 	// userame 取得
 	var username string
-	if err := tx.GetContext(ctx, &username, "SELECT name FROM users WHERE user_id = ?", userID); err != nil {
+	if err := tx.GetContext(ctx, &username, "SELECT name FROM users WHERE id = ?", userID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old user icon: "+err.Error())
 	}
 
