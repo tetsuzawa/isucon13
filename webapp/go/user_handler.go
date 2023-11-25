@@ -179,6 +179,11 @@ func postIconHandler(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate icon id: "+err.Error())
 		}
 		c.Logger().Debugf("ファイルを削除 : filename=%s", filename)
+		func() {
+			iconCacheLock.Lock()
+			defer iconCacheLock.Unlock()
+			delete(iconCache, filename)
+		}()
 	} else if os.IsNotExist(err) {
 		// do nothing
 		c.Logger().Debugf("ファイルが存在しないのでなにもしない: filename=%s", filename)
@@ -458,30 +463,30 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 		return User{}, fmt.Errorf("failed to get theme: %w", err)
 	}
 
-	var iconHashStr string
+	// var iconHashStr string
 	filename := fmt.Sprintf("%s%s.jpeg", iconBasePath, userModel.Name)
-	func() {
-		iconCacheLock.RLock()
-		defer iconCacheLock.RUnlock()
-		if hash, ok := iconCache[filename]; ok {
-			iconHashStr = hash
-		}
-	}()
-	if iconHashStr != "" {
-		user := User{
-			ID:          userModel.ID,
-			Name:        userModel.Name,
-			DisplayName: userModel.DisplayName,
-			Description: userModel.Description,
-			Theme: Theme{
-				ID:       themeModel.ID,
-				DarkMode: themeModel.DarkMode,
-			},
-			IconHash: iconHashStr,
-		}
+	//func() {
+	//	iconCacheLock.RLock()
+	//	defer iconCacheLock.RUnlock()
+	//	if hash, ok := iconCache[filename]; ok {
+	//		iconHashStr = hash
+	//	}
+	//}()
+	//if iconHashStr != "" {
+	//	user := User{
+	//		ID:          userModel.ID,
+	//		Name:        userModel.Name,
+	//		DisplayName: userModel.DisplayName,
+	//		Description: userModel.Description,
+	//		Theme: Theme{
+	//			ID:       themeModel.ID,
+	//			DarkMode: themeModel.DarkMode,
+	//		},
+	//		IconHash: iconHashStr,
+	//	}
 
-		return user, nil
-	}
+	//	return user, nil
+	//}
 
 	var iconHash [sha256.Size]byte
 	iconCacheLock.Lock()
