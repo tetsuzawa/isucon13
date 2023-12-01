@@ -127,6 +127,9 @@ func deleteAllIcon() {
 
 func initializeHandler(c echo.Context) error {
 	deleteAllIcon()
+	userCache.DelAll()
+	livestreamTagCache.DelAll()
+	themeCache.DelAll()
 
 	if out, err := exec.Command("../sql/pg/init.sh").CombinedOutput(); err != nil {
 		c.Logger().Warnf("init.sh failed with err=%s", string(out))
