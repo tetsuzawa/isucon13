@@ -179,7 +179,7 @@ func main() {
 
 	// 初期化
 	e.POST("/api/initialize", initializeHandler)
-	e.GET("/internal/cacheclear", initializeHandler)
+	e.GET("/internal/cacheclear", cacheClearHandler)
 
 	// top
 	e.GET("/api/tag", getTagHandler)
