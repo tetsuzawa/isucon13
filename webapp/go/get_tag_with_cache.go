@@ -27,7 +27,10 @@ func SelectAllTagsOnInit(ctx context.Context, db SelectContext) error {
 func SelectAllTags() []*TagModel {
 	var tagModels = make([]*TagModel, 0, len(tagCache.GetAll()))
 	for _, tag := range tagCache.GetAll() {
-		tagModels = append(tagModels, &tag)
+		tagModels = append(tagModels, &TagModel{
+			ID:   tag.ID,
+			Name: tag.Name,
+		})
 	}
 
 	return tagModels
