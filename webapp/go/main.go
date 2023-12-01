@@ -128,7 +128,7 @@ func deleteAllIcon() {
 
 func initializeHandler(c echo.Context) error {
 	deleteAllIcon()
-	_ = cacheClearHandler(c)
+	cacheClear()
 	resp, err := http.Get("http://192.168.0.13:8080/internal/cacheclear")
 	if err != nil {
 		log.Fatalf("failed to clear cache: %v", err)
@@ -149,10 +149,14 @@ func initializeHandler(c echo.Context) error {
 }
 
 func cacheClearHandler(c echo.Context) error {
+	cacheClear()
+	return c.String(http.StatusOK, "cache cleared\n")
+}
+
+func cacheClear() {
 	userCache.DelAll()
 	livestreamTagCache.DelAll()
 	themeCache.DelAll()
-	return c.String(http.StatusOK, "cache cleared\n")
 }
 
 func main() {
