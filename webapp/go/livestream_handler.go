@@ -181,9 +181,10 @@ func searchLivestreamsHandler(c echo.Context) error {
 	if c.QueryParam("tag") != "" {
 		// タグによる取得
 		var tagIDList []int
-		if err := tx.SelectContext(ctx, &tagIDList, "SELECT id FROM tags WHERE name = ?", keyTagName); err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get tags: "+err.Error())
-		}
+		//if err := tx.SelectContext(ctx, &tagIDList, "SELECT id FROM tags WHERE name = ?", keyTagName); err != nil {
+		//	return echo.NewHTTPError(http.StatusInternalServerError, "failed to get tags: "+err.Error())
+		//}
+		tagIDList = GetTagIDsByName(keyTagName)
 
 		query, params, err := sqlx.In("SELECT * FROM livestream_tags WHERE tag_id IN (?) ORDER BY livestream_id DESC", tagIDList)
 		if err != nil {
@@ -546,9 +547,10 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 	tags := make([]Tag, len(livestreamTagModels))
 	for i := range livestreamTagModels {
 		tagModel := TagModel{}
-		if err := tx.GetContext(ctx, &tagModel, "SELECT * FROM tags WHERE id = ?", livestreamTagModels[i].TagID); err != nil {
-			return Livestream{}, fmt.Errorf("error fetch tags: %w", err)
-		}
+		//if err := tx.GetContext(ctx, &tagModel, "SELECT * FROM tags WHERE id = ?", livestreamTagModels[i].TagID); err != nil {
+		//	return Livestream{}, fmt.Errorf("error fetch tags: %w", err)
+		//}
+		tagModel = GetTagByID(livestreamTagModels[i].TagID)
 
 		tags[i] = Tag{
 			ID:   tagModel.ID,
