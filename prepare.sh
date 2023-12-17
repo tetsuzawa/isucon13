@@ -101,5 +101,8 @@ sudo openresty -c /home/isucon/etc/openresty/nginx.conf -t
 sudo systemctl restart openresty
 sleep 0.5 && sudo systemctl is-active openresty
 
+# ===== pdns ======
+sudo cp etc/powerdns/pdns.conf /etc/powerdns/pdns.conf
+sudo systemctl restart pdns
 
 echo "OK"
