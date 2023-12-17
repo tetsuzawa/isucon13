@@ -469,6 +469,8 @@ var (
 )
 
 func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (User, error) {
+	ctx, span := tracer.Start(ctx, "fillUserReesponse")
+	defer span.End()
 	//themeModel := ThemeModel{}
 	//if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userModel.ID); err != nil {
 	//	return User{}, fmt.Errorf("failed to get theme: %w", err)
