@@ -185,6 +185,7 @@ func cacheClearHandler(c echo.Context) error {
 
 func cacheClear() {
 	deleteAllIcon()
+	iconBinCache.DelAll()
 	userCache.DelAll()
 	livestreamTagCache.DelAll()
 	themeCache.DelAll()
