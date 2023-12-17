@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -127,6 +128,14 @@ func deleteAllIcon() {
 
 func initializeHandler(c echo.Context) error {
 	deleteAllIcon()
+	cacheClear()
+	resp, err := http.Get("http://192.168.0.13:8080/internal/cacheclear")
+	if err != nil {
+		log.Fatalf("failed to clear cache: %v", err)
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	c.Logger().Infof("cache clear response: %v", string(respBody))
 
 	if out, err := exec.Command("../sql/pg/init.sh").CombinedOutput(); err != nil {
 		c.Logger().Warnf("init.sh failed with err=%s", string(out))
@@ -137,6 +146,17 @@ func initializeHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "golang",
 	})
+}
+
+func cacheClearHandler(c echo.Context) error {
+	cacheClear()
+	return c.String(http.StatusOK, "cache cleared\n")
+}
+
+func cacheClear() {
+	userCache.DelAll()
+	livestreamTagCache.DelAll()
+	themeCache.DelAll()
 }
 
 func main() {
@@ -163,6 +183,7 @@ func main() {
 
 	// 初期化
 	e.POST("/api/initialize", initializeHandler)
+	e.GET("/internal/cacheclear", cacheClearHandler)
 
 	// top
 	e.GET("/api/tag", getTagHandler)
@@ -225,6 +246,11 @@ func main() {
 	}
 	defer conn.Close()
 	dbConn = conn
+
+	err = SelectAllTagsOnInit(context.Background(), dbConn)
+	if err != nil {
+		panic(err)
+	}
 
 	subdomainAddr, ok := os.LookupEnv(powerDNSSubdomainAddressEnvKey)
 	if !ok {

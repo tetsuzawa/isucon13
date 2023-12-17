@@ -2,22 +2,56 @@ package main
 
 import (
 	"context"
+	"fmt"
 )
 
-type SelectContext interface {
-	SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+// select(tags): select id from tags where name = ?
+// select(tags): select * from tags where id = ?
+// select(tags): select * from tags
+
+var tagCache = NewCache[int64, TagModel]()
+
+func SelectAllTagsOnInit(ctx context.Context, db SelectContext) error {
+	tags := []TagModel{}
+	if err := db.SelectContext(ctx, &tags, "SELECT * FROM tags"); err != nil {
+		return err
+	}
+
+	for _, tag := range tags {
+		tagCache.Set(tag.ID, tag)
+	}
+	fmt.Println("tagCache:", tagCache.GetAll())
+	return nil
 }
 
-var livestreamTagCache = NewCache[int64, []*LivestreamTagModel]()
+func SelectAllTags() []*TagModel {
+	var tagModels = make([]*TagModel, 0, len(tagCache.GetAll()))
+	for _, tag := range tagCache.GetAll() {
+		tagModels = append(tagModels, &TagModel{
+			ID:   tag.ID,
+			Name: tag.Name,
+		})
+	}
 
-func GetTagWithCache(ctx context.Context, db SelectContext, livestreamID int64) ([]*LivestreamTagModel, error) {
-	if livesStreamTagModels, found := livestreamTagCache.Get(livestreamID); found {
-		return livesStreamTagModels, nil
+	return tagModels
+}
+
+func GetTagIDsByName(tagName string) []int {
+	var tagIDs = make([]int, 0, len(tagCache.GetAll()))
+	for tagID, tagModel := range tagCache.GetAll() {
+		if tagModel.Name == tagName {
+			tagIDs = append(tagIDs, int(tagID))
+		}
 	}
-	livestreamTagModels := []*LivestreamTagModel{}
-	if err := db.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamID); err != nil {
-		return nil, err
+	fmt.Println("tagIDs:", tagIDs)
+
+	return tagIDs
+}
+
+func GetTagByID(tagID int64) TagModel {
+	if tagModel, found := tagCache.Get(tagID); found {
+		return tagModel
+	} else {
+		panic("tag not found")
 	}
-	livestreamTagCache.Set(livestreamID, livestreamTagModels)
-	return livestreamTagModels, nil
 }
