@@ -413,8 +413,8 @@ func moderateHandler(c echo.Context) error {
 		if err := tx.SelectContext(ctx, &lss, query, args...); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
 		}
-		lsmap := lo.Associate(lss, func(ls *LivestreamModel) int64 {
-			return ls.ID
+		lsmap := lo.Associate(lss, func(ls *LivestreamModel) (int64, *LivestreamModel) {
+			return ls.ID, ls
 		})
 		decrMap := map[int64]int64{}
 		for lsid, tip := range deletedLivecommentTipByLivestreamID {
