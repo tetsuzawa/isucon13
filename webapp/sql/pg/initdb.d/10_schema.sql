@@ -134,5 +134,5 @@ CREATE TABLE reactions (
 
 -- view
 create view user_ranks AS
-SELECT *, RANK() OVER (ORDER BY user_scores.reactions + tip DESC, name) AS rank
+SELECT *, RANK() OVER (ORDER BY user_scores.total DESC, name DESC) AS rank
 FROM user_scores;
