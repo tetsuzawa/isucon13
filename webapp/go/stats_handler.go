@@ -144,28 +144,10 @@ func getUserStatisticsHandler(c echo.Context) error {
 	}
 
 	// ライブコメント数、チップ合計
-	var totalLivecomments int64
-	var livestreams []*LivestreamModel
-	if err := tx.SelectContext(ctx, &livestreams, "SELECT * FROM livestreams WHERE user_id = ?", user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
-	}
-
-	var ids []int64
-	for _, livestream := range livestreams {
-		ids = append(ids, livestream.ID)
-	}
-
-	// Prepare the query
-	query = "SELECT COUNT(*) FROM livecomments WHERE livestream_id IN (?)"
-	query, args, err := sqlx.In(query, ids)
+	totalLivecomments, err := getTotalLivecomments(ctx, user.ID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare query: "+err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get total livecomments: "+err.Error())
 	}
-
-	if err := tx.GetContext(ctx, &totalLivecomments, query, args...); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
-	}
-
 	totalTip, err := getTotalTip(ctx, user.ID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get total tip: "+err.Error())
@@ -175,8 +157,12 @@ func getUserStatisticsHandler(c echo.Context) error {
 
 	// Prepare the query
 	query = "SELECT COUNT(*) FROM livestream_viewers_history WHERE livestream_id IN (?)"
+	var ids []int64
+	if err := tx.SelectContext(ctx, &ids, "SELECT id FROM livestreams WHERE user_id = ?", user.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
+	}
 
-	query, args, err = sqlx.In(query, ids)
+	query, args, err := sqlx.In(query, ids)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare query: "+err.Error())
 	}

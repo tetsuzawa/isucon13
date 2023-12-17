@@ -141,14 +141,21 @@ func initializeHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
 	}
 	incrTotalTipMap := make(map[int64]int64)
+	incrLivecommentsMap := make(map[int64]int64)
 	for _, lc := range lcs {
 		if lc.Tip == 0 {
 			continue
 		}
 		incrTotalTipMap[lc.UserID] += lc.Tip
+		incrLivecommentsMap[lc.UserID]++
 	}
 	for userID, incr := range incrTotalTipMap {
 		if err := incrTotalTip(ctx, userID, incr); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+		}
+	}
+	for userID, incr := range incrLivecommentsMap {
+		if err := incrTotalLivecomments(ctx, userID, incr); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
 		}
 	}

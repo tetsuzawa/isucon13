@@ -35,3 +35,31 @@ func getTotalTip(ctx context.Context, userID int64) (int64, error) {
 	}
 	return val, nil
 }
+
+func totalLivecommentsKey(userID int64) string {
+	return fmt.Sprintf("total_livecomments:%d", userID)
+}
+
+func incrTotalLivecomments(ctx context.Context, userID int64, livecomments int64) error {
+	if err := rdb.IncrBy(ctx, totalLivecommentsKey(userID), livecomments).Err(); err != nil {
+		return fmt.Errorf("failed to incr total livecomments: %w", err)
+	}
+	return nil
+}
+
+func decrTotalLivecomments(ctx context.Context, userID int64, livecomments int64) error {
+	if err := rdb.DecrBy(ctx, totalLivecommentsKey(userID), livecomments).Err(); err != nil {
+		return fmt.Errorf("failed to decr total livecomments: %w", err)
+	}
+	return nil
+}
+
+func getTotalLivecomments(ctx context.Context, userID int64) (int64, error) {
+	val, err := rdb.Get(ctx, totalLivecommentsKey(userID)).Int64()
+	if errors.Is(err, redis.Nil) {
+		return 0, nil
+	} else if err != nil {
+		return 0, fmt.Errorf("failed to get total livecomments: %w", err)
+	}
+	return val, nil
+}
