@@ -56,8 +56,8 @@ mkdir -p /home/isucon/log/app
 sudo rm -f /etc/systemd/system/isupipe-go.service
 sudo tee /etc/systemd/system/isupipe-go-1.service < etc/systemd/system/isupipe-go-1.service > /dev/null
 sudo systemctl daemon-reload
-sudo systemctl restart isupipe-go.service
-sleep 0.5 && sudo systemctl is-active isupipe-go
+sudo systemctl restart isupipe-go-1.service
+sleep 0.5 && sudo systemctl is-active isupipe-go-1
 
 now=`date +'%Y-%m-%dT%H:%M:%S'`
 
