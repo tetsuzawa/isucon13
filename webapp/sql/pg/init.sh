@@ -25,6 +25,8 @@ psql -h ${ISUCON_DB_HOST} -U isucon -d isupipe -c "\COPY isupipe.reactions FROM 
 psql -h ${ISUCON_DB_HOST} -U isucon -d isupipe -c "\COPY isupipe.ng_words FROM ./ng_words.csv DELIMITER ',' CSV";
 psql -h ${ISUCON_DB_HOST} -U isucon -d isupipe -c "\COPY isupipe.livecomments FROM ./livecomments.csv DELIMITER ',' CSV";
 
+psql -U isucon -d isupipe -h ${ISUCON_DB_HOST} -f "./add.sql";
+
 bash ../../pdns/init_zone.sh
 
 
