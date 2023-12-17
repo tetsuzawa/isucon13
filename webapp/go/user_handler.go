@@ -511,12 +511,12 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 	iconCacheLock.Lock()
 	defer iconCacheLock.Unlock()
 
-	var iconHashDBstr string
 	var iconCacheStr string
 
 	if userModel.IconHash != nil {
-		iconCacheStr = iconHashDBstr
+		iconCacheStr = *userModel.IconHash
 	} else {
+		var iconHashDBstr string
 		// iconのハッシュ値はimageを取得して毎回計算するのではなくDBの生成列で計算済みのものを使う
 		// iconのハッシュをDBから取得できなかったらファイル or DBからimageを取得してハッシュ値を計算する
 		err = tx.GetContext(ctx, &iconHashDBstr, "SELECT hash FROM icons_hash WHERE user_id = ?", userModel.ID)
@@ -576,6 +576,11 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 	return user, nil
 }
 
+type IconHash struct {
+	UserID int64  `db:"user_id"`
+	Hash   string `db:"hash"`
+}
+
 func fillUserResponses(ctx context.Context, tx *sqlx.Tx, userModels []UserModel) ([]User, error) {
 	ids := lo.Map(userModels, func(userModel UserModel, _ int) int64 {
 		return userModel.ID
@@ -584,10 +589,6 @@ func fillUserResponses(ctx context.Context, tx *sqlx.Tx, userModels []UserModel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate query: %w", err)
 	}
-	type IconHash struct {
-		UserID int64  `db:"user_id"`
-		Hash   string `db:"hash"`
-	}
 	var iconHashes []IconHash
 	if err := tx.SelectContext(ctx, &iconHashes, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to get icon hashes: %w", err)
@@ -595,12 +596,11 @@ func fillUserResponses(ctx context.Context, tx *sqlx.Tx, userModels []UserModel)
 	iconHashMap := lo.Associate(iconHashes, func(iconHash IconHash) (int64, string) {
 		return iconHash.UserID, iconHash.Hash
 	})
-	_ = iconHashMap
 	users := make([]User, len(userModels))
 	for i, um := range userModels {
-		//if hash, ok := iconHashMap[um.ID]; ok {
-		//	um.IconHash = &hash
-		//}
+		if hash, ok := iconHashMap[um.ID]; ok {
+			um.IconHash = &hash
+		}
 		u, err := fillUserResponse(ctx, tx, um)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fill user response: %w", err)
