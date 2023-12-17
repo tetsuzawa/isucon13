@@ -1,23 +1,7 @@
 package main
 
-import (
-	"context"
-)
+// select(tags): select id from tags where name = ?
+// select(tags): select * from tags where id = ?
+// select(tags): select * from tags
 
-type SelectContext interface {
-	SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
-}
-
-var livestreamTagCache = NewCache[int64, []*LivestreamTagModel]()
-
-func GetTagWithCache(ctx context.Context, db SelectContext, livestreamID int64) ([]*LivestreamTagModel, error) {
-	if livesStreamTagModels, found := livestreamTagCache.Get(livestreamID); found {
-		return livesStreamTagModels, nil
-	}
-	livestreamTagModels := []*LivestreamTagModel{}
-	if err := db.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamID); err != nil {
-		return nil, err
-	}
-	livestreamTagCache.Set(livestreamID, livestreamTagModels)
-	return livestreamTagModels, nil
-}
+var tagCache = NewCache[int64, TagModel]()

@@ -23,3 +23,7 @@ ALTER SEQUENCE livecomments_id_seq RESTART WITH 1002;
 ALTER SEQUENCE livestreams_id_seq RESTART WITH 7496;
 ALTER SEQUENCE users_id_seq RESTART WITH 1001;
 ALTER SEQUENCE themes_id_seq RESTART WITH 1001;
+
+-- 追加テーブル
+TRUNCATE TABLE icons_hash;
+ALTER SEQUENCE icons_hash_id_seq RESTART WITH 1;

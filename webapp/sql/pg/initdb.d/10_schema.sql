@@ -8,12 +8,42 @@ CREATE TABLE users (
   UNIQUE (name)
 );
 
+-- scoreを事前に計算しておく
+-- 頻繁に更新するのでnameのユニークキーは敢えて外している
+create table user_scores
+(
+    user_id   bigint not null
+        constraint user_score_pk
+            primary key,
+    name varchar(255),
+    tip       bigint,
+    reactions bigint,
+    total    bigint generated always as (tip + reactions) stored    
+);
+
+
+
 -- プロフィール画像
 CREATE TABLE icons (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL,
   image BYTEA NOT NULL
 );
+
+-- hashを事前計算しておく
+create table isupipe.icons_hash
+(
+    id      bigserial
+        primary key,
+    user_id bigint not null,
+    image   bytea  not null,
+    hash    text generated always as (encode(digest(image, 'sha256'::text), 'hex'::text)) stored
+);
+
+create index icons_hash_user_id_index
+    on isupipe.icons_hash (user_id);
+
+
 
 -- ユーザごとのカスタムテーマ
 CREATE TABLE themes (
@@ -101,3 +131,8 @@ CREATE TABLE reactions (
   emoji_name VARCHAR(255) NOT NULL,
   created_at BIGINT NOT NULL
 );
+
+-- view
+create view user_ranks AS
+SELECT *, RANK() OVER (ORDER BY user_scores.total DESC, name DESC) AS rank
+FROM user_scores;
