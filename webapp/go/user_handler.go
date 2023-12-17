@@ -123,12 +123,6 @@ func getIconHandler(c echo.Context) error {
 			}
 		}
 	}
-	if _, err = os.Stat(fmt.Sprintf("%s%s.jpeg", iconBasePath, username)); err != nil {
-		accelRedirect := fmt.Sprintf("/api/user/%s/icon2%s", username, c.QueryString())
-		c.Response().Header().Set("X-Accell-Redirect", accelRedirect)
-		return c.NoContent(http.StatusOK)
-	}
-
 	b, ok := iconBinCache.Get(username)
 	if ok {
 		return c.Blob(http.StatusOK, "image/jpeg", b)
