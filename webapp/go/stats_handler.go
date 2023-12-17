@@ -167,6 +167,9 @@ func getUserStatisticsHandler(c echo.Context) error {
 	}
 
 	totalTip, err := getTotalTip(ctx, user.ID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get total tip: "+err.Error())
+	}
 
 	var viewersCount int64
 

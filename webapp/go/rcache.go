@@ -9,15 +9,15 @@ func totalTipKey(userID int64) string {
 	return fmt.Sprintf("total_tip:%d", userID)
 }
 
-func incrTotalTip(ctx context.Context, userID int64) error {
-	if err := rdb.Incr(ctx, totalTipKey(userID)).Err(); err != nil {
+func incrTotalTip(ctx context.Context, userID int64, tip int64) error {
+	if err := rdb.IncrBy(ctx, totalTipKey(userID), tip).Err(); err != nil {
 		return fmt.Errorf("failed to incr total tip: %w", err)
 	}
 	return nil
 }
 
-func decrTotalTip(ctx context.Context, userID int64) error {
-	if err := rdb.Decr(ctx, totalTipKey(userID)).Err(); err != nil {
+func decrTotalTip(ctx context.Context, userID int64, tip int64) error {
+	if err := rdb.DecrBy(ctx, totalTipKey(userID), tip).Err(); err != nil {
 		return fmt.Errorf("failed to decr total tip: %w", err)
 	}
 	return nil
