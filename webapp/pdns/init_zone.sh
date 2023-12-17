@@ -3,8 +3,8 @@
 set -eux
 cd $(dirname $0)
 
-if test -f /home/isucon/env.sh; then
-	. /home/isucon/env.sh
+if test -f /home/isucon/env1.sh; then
+	. /home/isucon/env1.sh
 fi
 
 ISUCON_SUBDOMAIN_ADDRESS=${ISUCON13_POWERDNS_SUBDOMAIN_ADDRESS:-127.0.0.1}
