@@ -42,8 +42,8 @@ sudo systemctl daemon-reload
 # slow log
 # MYSQL="mysql -h${DB_HOST} -P${DB_PORT} -u${DB_USER} -p${DB_PASS} ${DB_DATABASE}"
 # ${MYSQL} -e "set global slow_query_log_file = '${mysql_slow_log}'; set global long_query_time = 0; set global slow_query_log = ON;"
-sudo systemctl restart mysql
-sleep 0.5 && sudo systemctl is-active mysql # serviceの起動失敗確認。即時に確認するとactiveと表示されることがあるのでsleepする。
+# sudo systemctl restart mysql
+# sleep 0.5 && sudo systemctl is-active mysql # serviceの起動失敗確認。即時に確認するとactiveと表示されることがあるのでsleepする。
 
 
 # ====== go ======
@@ -53,10 +53,13 @@ sleep 0.5 && sudo systemctl is-active mysql # serviceの起動失敗確認。即
 )
 mkdir -p /home/isucon/log/app
 #sudo logrotate -f /home/isucon/etc/logrotate.d/app
-sudo systemctl restart isupipe-go.service
-sleep 0.5 && sudo systemctl is-active isupipe-go
+sudo rm -f /etc/systemd/system/isupipe-go.service
+sudo tee /etc/systemd/system/isupipe-go-3.service < etc/systemd/system/isupipe-go-3.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl restart isupipe-go-3.service
+sleep 0.5 && sudo systemctl is-active isupipe-go-3
 
-now=`date +'%Y-%m-%dT%H:%M:%S'`
+# now=`date +'%Y-%m-%dT%H:%M:%S'`
 
 # ====== redis ======
 # redis-cli flushall  # redisの中身をflushしたいときはコメントアウト
@@ -67,11 +70,11 @@ now=`date +'%Y-%m-%dT%H:%M:%S'`
 # sleep 0.5 && sudo systemctl is-active redis-server
 
 # ====== varnish ======
-sudo tee /etc/varnish/isucon.vcl < etc/varnish/isucon.vcl > /dev/null
-sudo tee /lib/systemd/system/varnish.service < lib/systemd/system/varnish.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl restart varnish
-sleep 0.5 && sudo systemctl is-active varnish
+# sudo tee /etc/varnish/isucon.vcl < etc/varnish/isucon.vcl > /dev/null
+# sudo tee /lib/systemd/system/varnish.service < lib/systemd/system/varnish.service > /dev/null
+# sudo systemctl daemon-reload
+# sudo systemctl restart varnish
+# sleep 0.5 && sudo systemctl is-active varnish
 
 # ====== nginx ======
 # mkdir -p /home/isucon/log/nginx
@@ -87,19 +90,19 @@ sleep 0.5 && sudo systemctl is-active varnish
 # sleep 0.5 && sudo systemctl is-active nginx
 
 # ====== openresty =====
-mkdir -p /home/isucon/log/nginx
-sudo touch ${nginx_access_log} ${nginx_error_log}
-sudo cp ${nginx_access_log} ${nginx_access_log}.$now
-sudo truncate -s 0 ${nginx_access_log}
-sudo ls -1 ${nginx_access_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
-sudo cp ${nginx_error_log} ${nginx_error_log}.$now
-sudo truncate -s 0 ${nginx_error_log}
-sudo ls -1 ${nginx_error_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
-sudo tee /lib/systemd/system/openresty.service < lib/systemd/system/openresty.service > /dev/null
-sudo systemctl daemon-reload
-sudo openresty -c /home/isucon/etc/openresty/nginx.conf -t
-sudo systemctl restart openresty
-sleep 0.5 && sudo systemctl is-active openresty
+# mkdir -p /home/isucon/log/nginx
+# sudo touch ${nginx_access_log} ${nginx_error_log}
+# sudo cp ${nginx_access_log} ${nginx_access_log}.$now
+# sudo truncate -s 0 ${nginx_access_log}
+# sudo ls -1 ${nginx_access_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
+# sudo cp ${nginx_error_log} ${nginx_error_log}.$now
+# sudo truncate -s 0 ${nginx_error_log}
+# sudo ls -1 ${nginx_error_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
+# sudo tee /lib/systemd/system/openresty.service < lib/systemd/system/openresty.service > /dev/null
+# sudo systemctl daemon-reload
+# sudo openresty -c /home/isucon/etc/openresty/nginx.conf -t
+# sudo systemctl restart openresty
+# sleep 0.5 && sudo systemctl is-active openresty
 
 
 echo "OK"
