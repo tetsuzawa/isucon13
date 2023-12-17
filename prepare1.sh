@@ -42,8 +42,8 @@ sudo systemctl daemon-reload
 # slow log
 # MYSQL="mysql -h${DB_HOST} -P${DB_PORT} -u${DB_USER} -p${DB_PASS} ${DB_DATABASE}"
 # ${MYSQL} -e "set global slow_query_log_file = '${mysql_slow_log}'; set global long_query_time = 0; set global slow_query_log = ON;"
-sudo systemctl restart mysql
-sleep 0.5 && sudo systemctl is-active mysql # serviceの起動失敗確認。即時に確認するとactiveと表示されることがあるのでsleepする。
+# sudo systemctl restart mysql
+# sleep 0.5 && sudo systemctl is-active mysql # serviceの起動失敗確認。即時に確認するとactiveと表示されることがあるのでsleepする。
 
 
 # ====== go ======

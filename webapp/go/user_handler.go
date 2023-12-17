@@ -162,6 +162,13 @@ func postIconHandler(c echo.Context) error {
 	if err := tx.GetContext(ctx, &iconID, "INSERT INTO icons (user_id, image) VALUES (?, ?) RETURNING id", userID, req.Image); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new user icon: "+err.Error())
 	}
+	var iconID2 int64
+	if err := tx.GetContext(ctx, &iconID2, "INSERT INTO icons_hash (user_id, image) VALUES (?, ?) RETURNING id", userID, req.Image); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new user icon: "+err.Error())
+	}
+	if iconID != iconID2 {
+		return echo.NewHTTPError(http.StatusInternalServerError, "icon hashをダブルライトにするところでIDが変わっててなんかおかしい")
+	}
 
 	// userame 取得
 	var username string
@@ -306,8 +313,12 @@ func registerHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert user theme: "+err.Error())
 	}
 
-	if out, err := exec.Command("sudo", "pdnsutil", "add-record", "u.isucon.dev", req.Name, "A", "0", powerDNSSubdomainAddress).CombinedOutput(); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, string(out)+": "+err.Error())
+	{
+		ctx, span := tracer.Start(c.Request().Context(), "pdnsutil_add-record")
+		if out, err := exec.CommandContext(ctx, "sudo", "pdnsutil", "add-record", "u.isucon.dev", req.Name, "A", "0", powerDNSSubdomainAddress).CombinedOutput(); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, string(out)+": "+err.Error())
+		}
+		span.End()
 	}
 
 	user, err := fillUserResponse(ctx, tx, userModel)
@@ -492,24 +503,49 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 	iconCacheLock.Lock()
 	defer iconCacheLock.Unlock()
 
-	b, err := os.ReadFile(filename)
-	if err == nil {
-		iconHash = sha256.Sum256(b)
-	} else {
-		log.Debug(fmt.Errorf("ファイルから画像の読み込みに失敗しました: %w", err).Error())
-		var image []byte
-		if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
-			if !errors.Is(err, sql.ErrNoRows) {
-				return User{}, fmt.Errorf("failed to get icon: %w", err)
-			}
-			image, err = os.ReadFile(fallbackImage)
-			if err != nil {
-				return User{}, fmt.Errorf("failed to read fallback image: %w", err)
+	var iconHashDBstr string
+	var iconCacheStr string
+
+	// iconのハッシュ値はimageを取得して毎回計算するのではなくDBの生成列で計算済みのものを使う
+	// iconのハッシュをDBから取得できなかったらファイル or DBからimageを取得してハッシュ値を計算する
+	err = tx.GetContext(ctx, &iconHashDBstr, "SELECT hash FROM icons_hash WHERE user_id = ?", userModel.ID)
+	if err != nil {
+		// iconのハッシュをDBから取得するのに失敗したらエラーを返す
+		if !errors.Is(err, sql.ErrNoRows) {
+			return User{}, fmt.Errorf("failed to get icon hash: %w", err)
+		}
+
+		// ここから下は呼ばれない前提
+		b, err := os.ReadFile(filename)
+		if err == nil {
+			// iconHashの計算をアプリケーションでやらずにDBでやる
+			iconHash = sha256.Sum256(b)
+		} else {
+			log.Debug(fmt.Errorf("ファイルから画像の読み込みに失敗しました: %w", err).Error())
+			var image []byte
+			if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
+				if !errors.Is(err, sql.ErrNoRows) {
+					return User{}, fmt.Errorf("failed to get icon: %w", err)
+				}
+				fallbackImageHash, ok := iconCache[fallbackImage]
+				if ok {
+					copy(iconHash[:], fallbackImageHash)
+				} else {
+					image, err = os.ReadFile(fallbackImage)
+					if err != nil {
+						return User{}, fmt.Errorf("failed to read fallback image: %w", err)
+					}
+					iconHash = sha256.Sum256(image)
+				}
+			} else {
+				// iconHashの計算をアプリケーションでやらずにDBでやる
+				iconHash = sha256.Sum256(image)
 			}
 		}
-		iconHash = sha256.Sum256(image)
+		iconCacheStr = fmt.Sprintf("%x", iconHash)
+	} else {
+		iconCacheStr = iconHashDBstr
 	}
-	iconCacheStr := fmt.Sprintf("%x", iconHash)
 	iconCache[filename] = iconCacheStr
 
 	user := User{

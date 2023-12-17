@@ -232,12 +232,17 @@ func postLivecommentHandler(c echo.Context) error {
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
+	if err := incrTotalTip(ctx, livestreamModel.UserID, livecommentModel.Tip); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to incr total tip: "+err.Error())
+	}
+	if err := incrTotalLivecomments(ctx, livestreamModel.UserID, 1); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to incr total livecomments: "+err.Error())
+	}
 
 	var userModel UserModel
 	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
-	sfs.Forget(userModel.Name)
 
 	return c.JSON(http.StatusCreated, livecomment)
 }
@@ -362,6 +367,8 @@ func moderateHandler(c echo.Context) error {
 	}
 
 	// NGワードにヒットする過去の投稿も全削除する
+	delTipMap := map[int64]int64{}
+	delLivecommentsMap := map[int64]int64{}
 	for _, ngword := range ngwords {
 		// ライブコメント一覧取得
 		var livecomments []*LivecommentModel
@@ -382,12 +389,27 @@ func moderateHandler(c echo.Context) error {
 			if _, err := tx.ExecContext(ctx, query, livecomment.ID, livestreamID); err != nil {
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
 			}
+			if livecomment.Tip > 0 {
+				delTipMap[livecomment.UserID] += livecomment.Tip
+			}
+			delLivecommentsMap[livecomment.UserID]++
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
+	for userID, tip := range delTipMap {
+		if err := decrTotalTip(ctx, userID, tip); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to decr tip: "+err.Error())
+		}
+	}
+	for userID, lc := range delLivecommentsMap {
+		if err := incrTotalLivecomments(ctx, userID, lc); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to decr livecomments: "+err.Error())
+		}
+	}
+
 	var livestreamModel LivestreamModel
 	if err := dbConn.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livestreamID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestream: "+err.Error())
@@ -396,7 +418,6 @@ func moderateHandler(c echo.Context) error {
 	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
-	sfs.Forget(userModel.Name)
 
 	return c.JSON(http.StatusCreated, map[string]interface{}{
 		"word_id": wordID,

@@ -44,18 +44,18 @@ alp json --file=${nginx_access_log} \
   --matching-groups ${ALPM}  \
   | tee ${result_dir}/alp.md
 
-# OUTFORMT=count,uri_method_status,min,max,sum,avg,p95,trace_id_sample
-# touch ${result_dir}/alp_trace.txt
-# cp ${result_dir}/alp_trace.txt ${result_dir}/alp_trace.txt.prev
-# alp-trace json --file=${nginx_access_log} \
-#   --nosave-pos \
-#   --sort sum \
-#   --reverse \
-#   --output ${OUTFORMT} \
-#   --format pretty \
-#   --matching-groups ${ALPM}  \
-#   --trace \
-#   | tee ${result_dir}/alp_trace.txt
+OUTFORMT=count,uri_method_status,min,max,sum,avg,p95,trace_id_sample
+touch ${result_dir}/alp_trace.txt
+cp ${result_dir}/alp_trace.txt ${result_dir}/alp_trace.txt.prev
+alp-trace json --file=${nginx_access_log} \
+  --nosave-pos \
+  --sort sum \
+  --reverse \
+  --output ${OUTFORMT} \
+  --format pretty \
+  --matching-groups ${ALPM}  \
+  --trace \
+  | tee ${result_dir}/alp_trace.txt
 
 
 # mysqlowquery
