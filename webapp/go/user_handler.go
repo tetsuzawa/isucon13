@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -102,20 +103,40 @@ func getIconHandler(c echo.Context) error {
 	}
 	defer tx.Rollback()
 
-	filename := fmt.Sprintf("%s%s.jpeg", iconBasePath, username)
-	b, err := os.ReadFile(filename)
-	if err == nil {
-		return c.Blob(http.StatusOK, "image/jpeg", b)
-	} else {
-		c.Logger().Debugf(fmt.Errorf("ファイルから画像の読み込みに失敗しました: %w", err).Error())
-	}
-
 	var user UserModel
 	if err := tx.GetContext(ctx, &user, "SELECT * FROM users WHERE name = ?", username); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return echo.NewHTTPError(http.StatusNotFound, "not found user that has the given username")
 		}
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
+	}
+
+	var iconHashDBstr string
+	err = tx.GetContext(ctx, &iconHashDBstr, "SELECT hash FROM icons_hash WHERE user_id = ?", user.ID)
+	if errors.Is(err, sql.ErrNoRows) {
+		// do nothing
+	} else if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get icon hash: "+err.Error())
+	} else {
+		// リクエストヘッダのETagと今生成したETagが一致するか比較し、一致したら304を返す
+		if match := c.Request().Header.Get("If-None-Match"); match != "" {
+			if strings.Contains(match, iconHashDBstr) {
+				return c.NoContent(http.StatusNotModified)
+			}
+		}
+	}
+	b, ok := iconBinCache.Get(username)
+	if ok {
+		return c.Blob(http.StatusOK, "image/jpeg", b)
+	}
+
+	filename := fmt.Sprintf("%s%s.jpeg", iconBasePath, username)
+	b, err = os.ReadFile(filename)
+	if err == nil {
+		iconBinCache.Set(username, b)
+		return c.Blob(http.StatusOK, "image/jpeg", b)
+	} else {
+		c.Logger().Debugf(fmt.Errorf("ファイルから画像の読み込みに失敗しました: %w", err).Error())
 	}
 
 	var image []byte
@@ -126,7 +147,7 @@ func getIconHandler(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user icon: "+err.Error())
 		}
 	}
-
+	iconBinCache.Set(username, image)
 	return c.Blob(http.StatusOK, "image/jpeg", image)
 }
 
@@ -177,6 +198,7 @@ func postIconHandler(c echo.Context) error {
 	if err := tx.GetContext(ctx, &username, "SELECT name FROM users WHERE id = ?", userID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old user icon: "+err.Error())
 	}
+	iconBinCache.Set(username, req.Image)
 
 	// ファイルの存在を確認
 	filename := fmt.Sprintf("%s%s.jpeg", iconBasePath, username)
