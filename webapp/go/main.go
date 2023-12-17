@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -126,7 +127,18 @@ func deleteAllIcon() {
 
 func initializeHandler(c echo.Context) error {
 	ctx := c.Request().Context()
-	deleteAllIcon()
+	resp, err := http.Get("http://192.168.0.11:8080/internal/cacheclear")
+	if err != nil {
+		log.Fatalf("failed to clear cache 1台目: %v", err)
+	}
+	defer resp.Body.Close()
+	resp, err = http.Get("http://192.168.0.13:8080/internal/cacheclear")
+	if err != nil {
+		log.Fatalf("failed to clear cache 3台目: %v", err)
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	c.Logger().Infof("cache clear response: %v", string(respBody))
 
 	if err := rdb.FlushAll(ctx).Err(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
@@ -166,6 +178,18 @@ func initializeHandler(c echo.Context) error {
 	})
 }
 
+func cacheClearHandler(c echo.Context) error {
+	cacheClear()
+	return c.String(http.StatusOK, "cache cleared\n")
+}
+
+func cacheClear() {
+	deleteAllIcon()
+	userCache.DelAll()
+	livestreamTagCache.DelAll()
+	themeCache.DelAll()
+}
+
 func main() {
 	initProfile()
 	tp, _ := initTracer(context.Background())
@@ -190,6 +214,7 @@ func main() {
 
 	// 初期化
 	e.POST("/api/initialize", initializeHandler)
+	e.GET("/internal/cacheclear", cacheClearHandler)
 
 	// top
 	e.GET("/api/tag", getTagHandler)
