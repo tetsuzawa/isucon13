@@ -87,9 +87,9 @@ func reserveLivestreamHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user_ranks: "+err.Error())
 	}
 
-	// userRankがnullの場合は2秒スリープする
+	// userRankがnullの場合は0.5秒スリープする
 	if userRank == 0 {
-		time.Sleep(0.5 * time.Second)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	var req *ReserveLivestreamRequest
