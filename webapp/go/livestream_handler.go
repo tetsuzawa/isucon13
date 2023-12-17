@@ -82,6 +82,17 @@ func reserveLivestreamHandler(c echo.Context) error {
 	// existence already checked
 	userID := sess.Values[defaultUserIDKey].(int64)
 
+	// user_ranksテーブルから上位10名を取得する
+	var userRank int64
+	if err := dbConn.GetContext(ctx, &userRank, "select * from user_ranks WHERE user_id = ? AND rank < 10", userID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user_ranks: "+err.Error())
+	}
+
+	// userRankがnullの場合は0.5秒スリープする
+	if userRank == 0 {
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	var req *ReserveLivestreamRequest
 	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "failed to decode the request body as json")
