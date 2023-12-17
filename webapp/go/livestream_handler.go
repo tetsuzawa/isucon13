@@ -13,6 +13,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
+	"github.com/samber/lo"
 )
 
 type ReserveLivestreamRequest struct {
@@ -236,13 +237,9 @@ func searchLivestreamsHandler(c echo.Context) error {
 		}
 	}
 
-	livestreams := make([]Livestream, len(livestreamModels))
-	for i := range livestreamModels {
-		livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModels[i])
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
-		}
-		livestreams[i] = livestream
+	livestreams, err := fillLivestreamsResponse(ctx, tx, livestreamModels)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestreams: "+err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -515,29 +512,40 @@ func getLivecommentReportsHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, reports)
 }
 
-func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel LivestreamModel) (Livestream, error) {
-	ctx, span := tracer.Start(ctx, "fillLivestreamResponse")
-	defer span.End()
-	//ownerModel := UserModel{}
-	//if err := tx.GetContext(ctx, &ownerModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
-	//	return Livestream{}, fmt.Errorf("error fetch users: %w", err)
-	//}
-
-	userModel, err := GetUserWithCache(ctx, tx, livestreamModel.UserID)
-	if err != nil {
-		return Livestream{}, fmt.Errorf("error fetch users: %w", err)
+func fillLivestreamsResponse(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
+	userIDs := lo.Map(livestreamModels, func(lm *LivestreamModel, _ int) int64 {
+		return lm.UserID
+	})
+	userIDs = lo.Uniq(userIDs)
+	userModels := make([]UserModel, len(userIDs))
+	for i, userID := range userIDs {
+		userModel, err := GetUserWithCache(ctx, tx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("error fetch user: %w", err)
+		}
+		userModels[i] = *userModel
 	}
-	ownerModel := *userModel
-
-	owner, err := fillUserResponse(ctx, tx, ownerModel)
+	us, err := fillUserResponses(ctx, tx, userModels)
 	if err != nil {
-		return Livestream{}, fmt.Errorf("error fetch fillUser: %w", err)
+		return nil, fmt.Errorf("error fill user: %w", err)
 	}
+	umap := lo.Associate(us, func(u User) (int64, User) {
+		return u.ID, u
+	})
 
-	//var livestreamTagModels []*LivestreamTagModel
-	//if err := tx.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamModel.ID); err != nil {
-	//	return Livestream{}, fmt.Errorf("error fetch livestream_tags: %w", err)
-	//}
+	livestreams := make([]Livestream, len(livestreamModels))
+	for i := range livestreamModels {
+		owner := umap[livestreamModels[i].UserID]
+		livestream, err := fillLivestreamResponseWithOwner(ctx, tx, *livestreamModels[i], owner)
+		if err != nil {
+			return nil, fmt.Errorf("error fill livestream: %w", err)
+		}
+		livestreams[i] = livestream
+	}
+	return livestreams, nil
+}
+
+func fillLivestreamResponseWithOwner(ctx context.Context, tx *sqlx.Tx, livestreamModel LivestreamModel, owner User) (Livestream, error) {
 	livestreamTagModels, err := GetLivestreamTagWithCache(ctx, tx, livestreamModel.ID)
 	if err != nil {
 		return Livestream{}, fmt.Errorf("error fetch livestream_tags: %w", err)
@@ -583,4 +591,31 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 		EndAt:        livestreamModel.EndAt,
 	}
 	return livestream, nil
+}
+
+func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel LivestreamModel) (Livestream, error) {
+	ctx, span := tracer.Start(ctx, "fillLivestreamResponse")
+	defer span.End()
+	//ownerModel := UserModel{}
+	//if err := tx.GetContext(ctx, &ownerModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
+	//	return Livestream{}, fmt.Errorf("error fetch users: %w", err)
+	//}
+
+	userModel, err := GetUserWithCache(ctx, tx, livestreamModel.UserID)
+	if err != nil {
+		return Livestream{}, fmt.Errorf("error fetch users: %w", err)
+	}
+	ownerModel := *userModel
+
+	owner, err := fillUserResponse(ctx, tx, ownerModel)
+	if err != nil {
+		return Livestream{}, fmt.Errorf("error fetch fillUser: %w", err)
+	}
+
+	ls, err := fillLivestreamResponseWithOwner(ctx, tx, livestreamModel, owner)
+	if err != nil {
+		return Livestream{}, fmt.Errorf("error fetch fillLivestreamResponseWithOwner: %w", err)
+	}
+
+	return ls, nil
 }
