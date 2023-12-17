@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func totalTipKey(userID int64) string {
@@ -25,7 +28,9 @@ func decrTotalTip(ctx context.Context, userID int64, tip int64) error {
 
 func getTotalTip(ctx context.Context, userID int64) (int64, error) {
 	val, err := rdb.Get(ctx, totalTipKey(userID)).Int64()
-	if err != nil {
+	if errors.Is(err, redis.Nil) {
+		return 0, nil
+	} else if err != nil {
 		return 0, fmt.Errorf("failed to get total tip: %w", err)
 	}
 	return val, nil
