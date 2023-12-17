@@ -38,7 +38,7 @@ sub vcl_init {
     # vdir.add_backend(isu2, 5.0);
 
     vdir.add_backend(isu1, 1.0);
-    vdir.add_backend(isu3, 9.0);
+    vdir.add_backend(isu3, 16.0);
 }
 
 # acl purge {
