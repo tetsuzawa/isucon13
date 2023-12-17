@@ -21,6 +21,7 @@ import (
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
+	"github.com/samber/lo"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -35,11 +36,12 @@ const (
 var fallbackImage = "../img/NoImage.jpg"
 
 type UserModel struct {
-	ID             int64  `db:"id"`
-	Name           string `db:"name"`
-	DisplayName    string `db:"display_name"`
-	Description    string `db:"description"`
-	HashedPassword string `db:"password"`
+	ID             int64   `db:"id"`
+	Name           string  `db:"name"`
+	DisplayName    string  `db:"display_name"`
+	Description    string  `db:"description"`
+	HashedPassword string  `db:"password"`
+	IconHash       *string `db:"-"`
 }
 
 type User struct {
@@ -469,6 +471,8 @@ var (
 )
 
 func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (User, error) {
+	ctx, span := tracer.Start(ctx, "fillUserReesponse")
+	defer span.End()
 	//themeModel := ThemeModel{}
 	//if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", userModel.ID); err != nil {
 	//	return User{}, fmt.Errorf("failed to get theme: %w", err)
@@ -507,49 +511,54 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 	iconCacheLock.Lock()
 	defer iconCacheLock.Unlock()
 
-	var iconHashDBstr string
 	var iconCacheStr string
 
-	// iconのハッシュ値はimageを取得して毎回計算するのではなくDBの生成列で計算済みのものを使う
-	// iconのハッシュをDBから取得できなかったらファイル or DBからimageを取得してハッシュ値を計算する
-	err = tx.GetContext(ctx, &iconHashDBstr, "SELECT hash FROM icons_hash WHERE user_id = ?", userModel.ID)
-	if err != nil {
-		// iconのハッシュをDBから取得するのに失敗したらエラーを返す
-		if !errors.Is(err, sql.ErrNoRows) {
-			return User{}, fmt.Errorf("failed to get icon hash: %w", err)
-		}
+	if userModel.IconHash != nil {
+		iconCacheStr = *userModel.IconHash
+	} else {
+		var iconHashDBstr string
+		// iconのハッシュ値はimageを取得して毎回計算するのではなくDBの生成列で計算済みのものを使う
+		// iconのハッシュをDBから取得できなかったらファイル or DBからimageを取得してハッシュ値を計算する
+		err = tx.GetContext(ctx, &iconHashDBstr, "SELECT hash FROM icons_hash WHERE user_id = ?", userModel.ID)
+		if err != nil {
+			// iconのハッシュをDBから取得するのに失敗したらエラーを返す
+			if !errors.Is(err, sql.ErrNoRows) {
+				return User{}, fmt.Errorf("failed to get icon hash: %w", err)
+			}
 
-		// ここから下は呼ばれない前提
-		b, err := os.ReadFile(filename)
-		if err == nil {
-			// iconHashの計算をアプリケーションでやらずにDBでやる
-			iconHash = sha256.Sum256(b)
-		} else {
-			log.Debug(fmt.Errorf("ファイルから画像の読み込みに失敗しました: %w", err).Error())
-			var image []byte
-			if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
-				if !errors.Is(err, sql.ErrNoRows) {
-					return User{}, fmt.Errorf("failed to get icon: %w", err)
-				}
-				fallbackImageHash, ok := iconCache[fallbackImage]
-				if ok {
-					copy(iconHash[:], fallbackImageHash)
-				} else {
-					image, err = os.ReadFile(fallbackImage)
-					if err != nil {
-						return User{}, fmt.Errorf("failed to read fallback image: %w", err)
+			// ここから下は呼ばれない前提
+			b, err := os.ReadFile(filename)
+			if err == nil {
+				// iconHashの計算をアプリケーションでやらずにDBでやる
+				iconHash = sha256.Sum256(b)
+			} else {
+				log.Debug(fmt.Errorf("ファイルから画像の読み込みに失敗しました: %w", err).Error())
+				var image []byte
+				if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
+					if !errors.Is(err, sql.ErrNoRows) {
+						return User{}, fmt.Errorf("failed to get icon: %w", err)
 					}
+					fallbackImageHash, ok := iconCache[fallbackImage]
+					if ok {
+						copy(iconHash[:], fallbackImageHash)
+					} else {
+						image, err = os.ReadFile(fallbackImage)
+						if err != nil {
+							return User{}, fmt.Errorf("failed to read fallback image: %w", err)
+						}
+						iconHash = sha256.Sum256(image)
+					}
+				} else {
+					// iconHashの計算をアプリケーションでやらずにDBでやる
 					iconHash = sha256.Sum256(image)
 				}
-			} else {
-				// iconHashの計算をアプリケーションでやらずにDBでやる
-				iconHash = sha256.Sum256(image)
 			}
+			iconCacheStr = fmt.Sprintf("%x", iconHash)
+		} else {
+			iconCacheStr = iconHashDBstr
 		}
-		iconCacheStr = fmt.Sprintf("%x", iconHash)
-	} else {
-		iconCacheStr = iconHashDBstr
 	}
+
 	iconCache[filename] = iconCacheStr
 
 	user := User{
@@ -565,4 +574,38 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 	}
 
 	return user, nil
+}
+
+type IconHash struct {
+	UserID int64  `db:"user_id"`
+	Hash   string `db:"hash"`
+}
+
+func fillUserResponses(ctx context.Context, tx *sqlx.Tx, userModels []UserModel) ([]User, error) {
+	ids := lo.Map(userModels, func(userModel UserModel, _ int) int64 {
+		return userModel.ID
+	})
+	query, args, err := sqlx.In("SELECT user_id, hash FROM icons_hash WHERE user_id IN (?)", ids)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate query: %w", err)
+	}
+	var iconHashes []IconHash
+	if err := tx.SelectContext(ctx, &iconHashes, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to get icon hashes: %w", err)
+	}
+	iconHashMap := lo.Associate(iconHashes, func(iconHash IconHash) (int64, string) {
+		return iconHash.UserID, iconHash.Hash
+	})
+	users := make([]User, len(userModels))
+	for i, um := range userModels {
+		if hash, ok := iconHashMap[um.ID]; ok {
+			um.IconHash = &hash
+		}
+		u, err := fillUserResponse(ctx, tx, um)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fill user response: %w", err)
+		}
+		users[i] = u
+	}
+	return users, nil
 }

@@ -494,6 +494,8 @@ func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel 
 }
 
 func fillLivecommentReportResponse(ctx context.Context, tx *sqlx.Tx, reportModel LivecommentReportModel) (LivecommentReport, error) {
+	ctx, span := tracer.Start(ctx, "fillLivecommentReportResponse")
+	defer span.End()
 	//reporterModel := UserModel{}
 	//if err := tx.GetContext(ctx, &reporterModel, "SELECT * FROM users WHERE id = ?", reportModel.UserID); err != nil {
 	//	return LivecommentReport{}, err
