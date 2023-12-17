@@ -112,13 +112,12 @@ func connectDB(logger echo.Logger) (*sqlx.DB, error) {
 func deleteAllIcon() {
 	// bashを使用しないとglobが展開されない
 	// 注意: 引数を''をくくるとうまく動かない
-	//cmd := exec.Command("bash", "-c", "rm -rfv /home/isucon/private_isu/webapp/public/image/*")
+	// cmd := exec.Command("bash", "-c", "rm -rfv /home/isucon/private_isu/webapp/public/image/*")
 
 	// 注意: 実行権限を忘れずに
 	cmd := exec.Command("bash", "-c", "/home/isucon/delete_all_icon.sh")
 	fmt.Printf("running command: `%s`\n", cmd.String())
 	output, err := cmd.Output()
-
 	if err != nil {
 		log.Fatalf("command exec error: %v", err)
 	}
@@ -126,11 +125,39 @@ func deleteAllIcon() {
 }
 
 func initializeHandler(c echo.Context) error {
+	ctx := c.Request().Context()
 	deleteAllIcon()
+
+	if err := rdb.FlushAll(ctx).Err(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+	}
 
 	if out, err := exec.Command("../sql/pg/init.sh").CombinedOutput(); err != nil {
 		c.Logger().Warnf("init.sh failed with err=%s", string(out))
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+	}
+	var lcs []*LivecommentModel
+	if err := dbConn.SelectContext(ctx, &lcs, "SELECT * FROM livecomments"); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+	}
+	incrTotalTipMap := make(map[int64]int64)
+	incrLivecommentsMap := make(map[int64]int64)
+	for _, lc := range lcs {
+		if lc.Tip == 0 {
+			continue
+		}
+		incrTotalTipMap[lc.UserID] += lc.Tip
+		incrLivecommentsMap[lc.UserID]++
+	}
+	for userID, incr := range incrTotalTipMap {
+		if err := incrTotalTip(ctx, userID, incr); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+		}
+	}
+	for userID, incr := range incrLivecommentsMap {
+		if err := incrTotalLivecomments(ctx, userID, incr); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+		}
 	}
 
 	c.Request().Header.Add("Content-Type", "application/json;charset=utf-8")
