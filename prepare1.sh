@@ -53,6 +53,9 @@ sudo systemctl daemon-reload
 )
 mkdir -p /home/isucon/log/app
 #sudo logrotate -f /home/isucon/etc/logrotate.d/app
+sudo rm -f /etc/systemd/system/isupipe-go.service
+sudo tee /etc/systemd/system/isupipe-go-1.service < etc/systemd/system/isupipe-go-1.service > /dev/null
+sudo systemctl daemon-reload
 sudo systemctl restart isupipe-go.service
 sleep 0.5 && sudo systemctl is-active isupipe-go
 
