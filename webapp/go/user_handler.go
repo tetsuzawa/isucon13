@@ -499,24 +499,42 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 	iconCacheLock.Lock()
 	defer iconCacheLock.Unlock()
 
-	b, err := os.ReadFile(filename)
-	if err == nil {
-		iconHash = sha256.Sum256(b)
-	} else {
-		log.Debug(fmt.Errorf("ファイルから画像の読み込みに失敗しました: %w", err).Error())
-		var image []byte
-		if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
-			if !errors.Is(err, sql.ErrNoRows) {
-				return User{}, fmt.Errorf("failed to get icon: %w", err)
-			}
-			image, err = os.ReadFile(fallbackImage)
-			if err != nil {
-				return User{}, fmt.Errorf("failed to read fallback image: %w", err)
-			}
+	var iconHashDBstr string
+	var iconCacheStr string
+
+	// iconのハッシュ値はimageを取得して毎回計算するのではなくDBの生成列で計算済みのものを使う
+	// iconのハッシュをDBから取得できなかったらファイル or DBからimageを取得してハッシュ値を計算する
+	err = tx.GetContext(ctx, &iconHashDBstr, "SELECT hash FROM icons_hash WHERE user_id = ?", userModel.ID)
+	if err != nil {
+		// iconのハッシュをDBから取得するのに失敗したらエラーを返す
+		if !errors.Is(err, sql.ErrNoRows) {
+			return User{}, fmt.Errorf("failed to get icon hash: %w", err)
 		}
-		iconHash = sha256.Sum256(image)
+
+		// ここから下は呼ばれない前提
+		b, err := os.ReadFile(filename)
+		if err == nil {
+			// iconHashの計算をアプリケーションでやらずにDBでやる
+			iconHash = sha256.Sum256(b)
+		} else {
+			log.Debug(fmt.Errorf("ファイルから画像の読み込みに失敗しました: %w", err).Error())
+			var image []byte
+			if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {
+				if !errors.Is(err, sql.ErrNoRows) {
+					return User{}, fmt.Errorf("failed to get icon: %w", err)
+				}
+				image, err = os.ReadFile(fallbackImage)
+				if err != nil {
+					return User{}, fmt.Errorf("failed to read fallback image: %w", err)
+				}
+			}
+			// iconHashの計算をアプリケーションでやらずにDBでやる
+			iconHash = sha256.Sum256(image)
+		}
+		iconCacheStr = fmt.Sprintf("%x", iconHash)
+	} else {
+		iconCacheStr = iconHashDBstr
 	}
-	iconCacheStr := fmt.Sprintf("%x", iconHash)
 	iconCache[filename] = iconCacheStr
 
 	user := User{
