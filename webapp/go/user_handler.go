@@ -595,11 +595,12 @@ func fillUserResponses(ctx context.Context, tx *sqlx.Tx, userModels []UserModel)
 	iconHashMap := lo.Associate(iconHashes, func(iconHash IconHash) (int64, string) {
 		return iconHash.UserID, iconHash.Hash
 	})
+	_ = iconHashMap
 	users := make([]User, len(userModels))
 	for i, um := range userModels {
-		if hash, ok := iconHashMap[um.ID]; ok {
-			um.IconHash = &hash
-		}
+		//if hash, ok := iconHashMap[um.ID]; ok {
+		//	um.IconHash = &hash
+		//}
 		u, err := fillUserResponse(ctx, tx, um)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fill user response: %w", err)
