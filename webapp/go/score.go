@@ -8,7 +8,7 @@ import (
 )
 
 func initScore(ctx context.Context, db sqlx.ExecerContext, userModel UserModel) error {
-	if _, err := db.ExecContext(ctx, "INSERT INTO user_scores (user_id, name, reactions, tip) VALUES (?, 0, 0)", userModel.ID, userModel.Name); err != nil {
+	if _, err := db.ExecContext(ctx, "INSERT INTO user_scores (user_id, name, reactions, tip) VALUES (?, ?, 0, 0)", userModel.ID, userModel.Name); err != nil {
 		return fmt.Errorf("failed to init score: %w", err)
 	}
 	return nil
