@@ -89,7 +89,7 @@ func reserveLivestreamHandler(c echo.Context) error {
 
 	// userRankがnullの場合は2秒スリープする
 	if userRank == 0 {
-		time.Sleep(2 * time.Second)
+		time.Sleep(0.5 * time.Second)
 	}
 
 	var req *ReserveLivestreamRequest
