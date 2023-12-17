@@ -499,9 +499,13 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 	iconCacheLock.Lock()
 	defer iconCacheLock.Unlock()
 
+	var iconHashDBstr string
+	var iconCacheStr string
+
 	// iconのハッシュ値はimageを取得して毎回計算するのではなくDBの生成列で計算済みのものを使う
 	// iconのハッシュをDBから取得できなかったらファイル or DBからimageを取得してハッシュ値を計算する
-	if err := tx.GetContext(ctx, &iconHash, "SELECT hash FROM icons_hash WHERE user_id = ?", userModel.ID); err != nil {
+	err = tx.GetContext(ctx, &iconHashDBstr, "SELECT hash FROM icons_hash WHERE user_id = ?", userModel.ID)
+	if err != nil {
 		// iconのハッシュをDBから取得するのに失敗したらエラーを返す
 		if !errors.Is(err, sql.ErrNoRows) {
 			return User{}, fmt.Errorf("failed to get icon hash: %w", err)
@@ -527,9 +531,10 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 			// iconHashの計算をアプリケーションでやらずにDBでやる
 			iconHash = sha256.Sum256(image)
 		}
+		iconCacheStr = fmt.Sprintf("%x", iconHash)
+	} else {
+		iconCacheStr = iconHashDBstr
 	}
-
-	iconCacheStr := fmt.Sprintf("%x", iconHash)
 	iconCache[filename] = iconCacheStr
 
 	user := User{
