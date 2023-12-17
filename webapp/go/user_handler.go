@@ -523,13 +523,20 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 				if !errors.Is(err, sql.ErrNoRows) {
 					return User{}, fmt.Errorf("failed to get icon: %w", err)
 				}
-				image, err = os.ReadFile(fallbackImage)
-				if err != nil {
-					return User{}, fmt.Errorf("failed to read fallback image: %w", err)
+				fallbackImageHash, ok := iconCache[fallbackImage]
+				if ok {
+					copy(iconHash[:], fallbackImageHash)
+				} else {
+					image, err = os.ReadFile(fallbackImage)
+					if err != nil {
+						return User{}, fmt.Errorf("failed to read fallback image: %w", err)
+					}
+					iconHash = sha256.Sum256(image)
 				}
+			} else {
+				// iconHashの計算をアプリケーションでやらずにDBでやる
+				iconHash = sha256.Sum256(image)
 			}
-			// iconHashの計算をアプリケーションでやらずにDBでやる
-			iconHash = sha256.Sum256(image)
 		}
 		iconCacheStr = fmt.Sprintf("%x", iconHash)
 	} else {
