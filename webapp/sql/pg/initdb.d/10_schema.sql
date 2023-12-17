@@ -8,6 +8,21 @@ CREATE TABLE users (
   UNIQUE (name)
 );
 
+-- scoreを事前に計算しておく
+-- 頻繁に更新するのでnameのユニークキーは敢えて外している
+create table user_scores
+(
+    user_id   bigint not null
+        constraint user_score_pk
+            primary key,
+    name varchar(255),
+    tip       bigint,
+    reactions bigint,
+    total    bigint generated always as (tip + reactions) stored    
+);
+
+
+
 -- プロフィール画像
 CREATE TABLE icons (
   id BIGSERIAL PRIMARY KEY,
@@ -116,3 +131,8 @@ CREATE TABLE reactions (
   emoji_name VARCHAR(255) NOT NULL,
   created_at BIGINT NOT NULL
 );
+
+-- view
+create view user_ranks AS
+SELECT *, RANK() OVER (ORDER BY user_scores.reactions + tip DESC, name) AS rank
+FROM user_scores;
