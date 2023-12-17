@@ -12,7 +12,7 @@ echo "# Analyze"
 . /tmp/prepared_env
 
 # isucon serviceで使うenv
-. ./env.sh
+. ./env1.sh
 
 result_dir=$HOME/result
 mkdir -p ${result_dir}
