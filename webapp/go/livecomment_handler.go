@@ -237,7 +237,6 @@ func postLivecommentHandler(c echo.Context) error {
 	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
-	sfs.Forget(userModel.Name)
 
 	return c.JSON(http.StatusCreated, livecomment)
 }
@@ -396,7 +395,6 @@ func moderateHandler(c echo.Context) error {
 	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
-	sfs.Forget(userModel.Name)
 
 	return c.JSON(http.StatusCreated, map[string]interface{}{
 		"word_id": wordID,
