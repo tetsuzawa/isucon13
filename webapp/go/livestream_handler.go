@@ -377,7 +377,6 @@ func enterLivestreamHandler(c echo.Context) error {
 	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
-	sfs.Forget(userModel.Name)
 
 	return c.NoContent(http.StatusOK)
 }
@@ -420,7 +419,6 @@ func exitLivestreamHandler(c echo.Context) error {
 	if err := dbConn.GetContext(ctx, &userModel, "SELECT * FROM users WHERE id = ?", livestreamModel.UserID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
-	sfs.Forget(userModel.Name)
 
 	return c.NoContent(http.StatusOK)
 }
@@ -538,16 +536,31 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 	//if err := tx.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamModel.ID); err != nil {
 	//	return Livestream{}, fmt.Errorf("error fetch livestream_tags: %w", err)
 	//}
-	livestreamTagModels, err := GetTagWithCache(ctx, tx, livestreamModel.ID)
+	livestreamTagModels, err := GetLivestreamTagWithCache(ctx, tx, livestreamModel.ID)
 	if err != nil {
 		return Livestream{}, fmt.Errorf("error fetch livestream_tags: %w", err)
 	}
 
 	tags := make([]Tag, len(livestreamTagModels))
 	for i := range livestreamTagModels {
-		tagModel := TagModel{}
-		if err := tx.GetContext(ctx, &tagModel, "SELECT * FROM tags WHERE id = ?", livestreamTagModels[i].TagID); err != nil {
-			return Livestream{}, fmt.Errorf("error fetch tags: %w", err)
+		//tagModel := TagModel{}
+		//if err := tx.GetContext(ctx, &tagModel, "SELECT * FROM tags WHERE id = ?", livestreamTagModels[i].TagID); err != nil {
+		//	return Livestream{}, fmt.Errorf("error fetch tags: %w", err)
+		//}
+
+		tagModel, ok := tagCache.Get(livestreamTagModels[i].TagID)
+		if !ok {
+			tagModelsForCache := []TagModel{}
+			if err := tx.SelectContext(ctx, &tagModelsForCache, "SELECT * FROM tags"); err != nil {
+				return Livestream{}, fmt.Errorf("error fetch tags: %w", err)
+			}
+			for _, tagModelForCache := range tagModelsForCache {
+				tagCache.Set(tagModelForCache.ID, tagModelForCache)
+			}
+			tagModel, ok = tagCache.Get(livestreamTagModels[i].TagID)
+			if !ok {
+				return Livestream{}, fmt.Errorf("タグをキャッシュするようにしたのになぜか取得できなくておかしい: %w", err)
+			}
 		}
 
 		tags[i] = Tag{
