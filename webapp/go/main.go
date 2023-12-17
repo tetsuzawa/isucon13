@@ -137,7 +137,7 @@ func initializeHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
 	}
 	var lcs []*LivecommentModel
-	if err := dbConn.SelectContext(ctx, &lcs, "SELECT * FROM livecomment"); err != nil {
+	if err := dbConn.SelectContext(ctx, &lcs, "SELECT * FROM livecomments"); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
 	}
 	incrTotalTipMap := make(map[int64]int64)
