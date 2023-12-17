@@ -15,6 +15,21 @@ CREATE TABLE icons (
   image BYTEA NOT NULL
 );
 
+-- hashを事前計算しておく
+create table isupipe.icons_hash
+(
+    id      bigserial
+        primary key,
+    user_id bigint not null,
+    image   bytea  not null,
+    hash    text generated always as (encode(digest(image, 'sha256'::text), 'hex'::text)) stored
+);
+
+create index icons_hash_user_id_index
+    on isupipe.icons_hash (user_id);
+
+
+
 -- ユーザごとのカスタムテーマ
 CREATE TABLE themes (
   id BIGSERIAL PRIMARY KEY,
