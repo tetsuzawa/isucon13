@@ -326,6 +326,10 @@ func registerHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill user: "+err.Error())
 	}
 
+	if err := initScore(ctx, tx, userModel); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to init score: "+err.Error())
+	}
+
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}

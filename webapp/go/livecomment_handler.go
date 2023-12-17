@@ -14,6 +14,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
+	"github.com/samber/lo"
 )
 
 type PostLivecommentRequest struct {
@@ -228,6 +229,11 @@ func postLivecommentHandler(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livecomment: "+err.Error())
 	}
+	if livecomment.Tip > 0 {
+		if err := incrTipToScore(ctx, tx, livestreamModel.UserID, livecommentModel.Tip); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to incr tip to score: "+err.Error())
+		}
+	}
 
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
@@ -369,6 +375,7 @@ func moderateHandler(c echo.Context) error {
 	// NGワードにヒットする過去の投稿も全削除する
 	delTipMap := map[int64]int64{}
 	delLivecommentsMap := map[int64]int64{}
+	deletedLivecommentTipByLivestreamID := map[int64]int64{}
 	for _, ngword := range ngwords {
 		// ライブコメント一覧取得
 		var livecomments []*LivecommentModel
@@ -391,8 +398,33 @@ func moderateHandler(c echo.Context) error {
 			}
 			if livecomment.Tip > 0 {
 				delTipMap[livecomment.UserID] += livecomment.Tip
+				deletedLivecommentTipByLivestreamID[livecomment.LivestreamID] += livecomment.Tip
 			}
 			delLivecommentsMap[livecomment.UserID]++
+		}
+	}
+	lsids := lo.Keys(deletedLivecommentTipByLivestreamID)
+	if len(lsids) > 0 {
+		lss := make([]*LivestreamModel, 0, len(lsids))
+		query, args, err := sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", lsids)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to create sqlx.In query: "+err.Error())
+		}
+		if err := tx.SelectContext(ctx, &lss, query, args...); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livestreams: "+err.Error())
+		}
+		lsmap := lo.Associate(lss, func(ls *LivestreamModel) (int64, *LivestreamModel) {
+			return ls.ID, ls
+		})
+		decrMap := map[int64]int64{}
+		for lsid, tip := range deletedLivecommentTipByLivestreamID {
+			ls := lsmap[lsid]
+			decrMap[ls.UserID] += tip
+		}
+		for userID, tip := range decrMap {
+			if err := decrTipToScore(ctx, tx, userID, tip); err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to decr tip: "+err.Error())
+			}
 		}
 	}
 
