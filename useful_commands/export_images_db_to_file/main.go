@@ -33,7 +33,7 @@ func main() {
 
 	// Retrieve image data from the database
 	var icons []Icon
-	query := `SELECT icons.id as id, name as user_name , image FROM icons_hash JOIN isupipe.users on icons.user_id = users.id`
+	query := `SELECT icons_hash.id as id, name as user_name , image FROM icons_hash JOIN isupipe.users on icons_hash.user_id = users.id`
 	err = db.Select(&icons, query)
 	if err != nil {
 		log.Fatal(err)

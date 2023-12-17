@@ -159,15 +159,8 @@ func postIconHandler(c echo.Context) error {
 	}
 
 	var iconID int64
-	//if err := tx.GetContext(ctx, &iconID, "INSERT INTO icons (user_id, image) VALUES (?, ?) RETURNING id", userID, req.Image); err != nil {
-	//	return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new user icon: "+err.Error())
-	//}
-	var iconID2 int64
-	if err := tx.GetContext(ctx, &iconID2, "INSERT INTO icons_hash (user_id, image) VALUES (?, ?) RETURNING id", userID, req.Image); err != nil {
+	if err := tx.GetContext(ctx, &iconID, "INSERT INTO icons_hash (user_id, image) VALUES (?, ?) RETURNING id", userID, req.Image); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new user icon: "+err.Error())
-	}
-	if iconID != iconID2 {
-		return echo.NewHTTPError(http.StatusInternalServerError, "icon hashをダブルライトにするところでIDが変わっててなんかおかしい")
 	}
 
 	// userame 取得
